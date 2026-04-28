@@ -334,6 +334,11 @@ impl StateStore {
         }))
     }
 
+    /// Return the raw SQLite connection guard for use by sibling DB modules.
+    pub fn lock(&self) -> std::sync::MutexGuard<'_, Sqlite> {
+        self.db.lock().expect("state lock poisoned")
+    }
+
     pub fn delete(&self, id: &str) -> TuskResult<()> {
         let db = self.db.lock().expect("state lock poisoned");
         db.execute("DELETE FROM connections WHERE id = ?1", params![id])
