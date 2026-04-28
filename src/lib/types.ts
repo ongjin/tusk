@@ -174,3 +174,39 @@ export interface ResultMeta {
   pkColumnIndices: number[];
   columnTypes: ColumnTypeMeta[];
 }
+
+export interface TxState {
+  connId: string;
+  active: boolean;
+  txId?: string;
+  startedAt?: number;
+  statementCount: number;
+  lastError?: string;
+  pid?: number;
+}
+
+export interface HistoryEntry {
+  id: string;
+  connId: string;
+  source: "editor" | "inline" | "palette";
+  txId?: string;
+  sqlPreview: string;
+  sqlFull?: string;
+  startedAt: number;
+  durationMs: number;
+  rowCount?: number;
+  status: "ok" | "error" | "cancelled" | "rolled_back" | "open";
+  errorMessage?: string;
+  statementCount: number;
+}
+
+export interface HistoryStatement {
+  id: string;
+  entryId: string;
+  ordinal: number;
+  sql: string;
+  durationMs: number;
+  rowCount?: number;
+  status: "ok" | "error";
+  errorMessage?: string;
+}
