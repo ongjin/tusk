@@ -16,6 +16,8 @@ import { TxSidePanel } from "@/features/transactions/TxSidePanel";
 import { Button } from "@/components/ui/button";
 import { ConfirmModalHost, openConfirmModal } from "@/lib/confirm";
 import { useTheme } from "@/hooks/use-theme";
+import { aiSecretListPresent } from "@/lib/keychain";
+import { useAi } from "@/store/ai";
 import { useConnections } from "@/store/connections";
 import { useSettings } from "@/store/settings";
 import { useTabs } from "@/store/tabs";
@@ -119,6 +121,16 @@ function App() {
       cancelled = true;
       if (unlisten) unlisten();
     };
+  }, []);
+
+  // Hydrate apiKeyPresent flags from secure storage on mount.
+  useEffect(() => {
+    void aiSecretListPresent().then((present) => {
+      const setProviderConfig = useAi.getState().setProviderConfig;
+      (["openai", "anthropic", "gemini", "ollama"] as const).forEach((p) => {
+        setProviderConfig(p, { apiKeyPresent: present.includes(p) });
+      });
+    });
   }, []);
 
   // Running-query toast with a Cancel action. We delay the toast 500ms so
