@@ -28,11 +28,15 @@ interface SchemaState {
 }
 
 export const useSchema = create<SchemaState>((set, get) => ({
+  // `databases` and `loadDatabases` are reserved for v1.5 when a single
+  // connection can browse multiple databases. The Week 2 tree skips this
+  // level since each ConnectionRecord encodes one database.
   databases: {},
   schemas: {},
   tables: {},
   columns: {},
 
+  // Reserved for v1.5 — see comment on `databases` field.
   async loadDatabases(connId) {
     if (get().databases[connId]?.state === "ready") return;
     set((s) => ({

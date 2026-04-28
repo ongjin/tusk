@@ -67,7 +67,8 @@ pub async fn list_tables(
     let pool = registry.pool(&connection_id)?;
     let rows = sqlx::query(
         "SELECT table_name FROM information_schema.tables
-         WHERE table_schema = $1 ORDER BY table_name",
+         WHERE table_schema = $1 AND table_type = 'BASE TABLE'
+         ORDER BY table_name",
     )
     .bind(&schema)
     .fetch_all(&pool)

@@ -8,6 +8,7 @@ import {
   listConnections,
 } from "@/lib/tauri";
 import type { ConnectionListItem, NewConnection } from "@/lib/types";
+import { useSchema } from "@/store/schema";
 
 interface ConnectionsState {
   items: ConnectionListItem[];
@@ -43,6 +44,7 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
 
   async remove(id) {
     await deleteConnectionCmd(id);
+    useSchema.getState().clear(id);
     if (get().activeId === id) set({ activeId: null });
     await get().refresh();
   },
@@ -55,6 +57,7 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
 
   async disconnect(id) {
     await disconnectCmd(id);
+    useSchema.getState().clear(id);
     if (get().activeId === id) set({ activeId: null });
     await get().refresh();
   },

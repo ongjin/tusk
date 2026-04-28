@@ -43,7 +43,7 @@ function App() {
             {theme === "light" ? <Moon /> : <Sun />}
           </Button>
         </div>
-        <div className="border-border flex flex-col gap-2 border-b p-3">
+        <div className="border-border flex max-h-72 flex-col gap-2 overflow-y-auto border-b p-3">
           <ConnectionForm />
           <ConnectionList />
         </div>
