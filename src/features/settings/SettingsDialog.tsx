@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 
 import { ProviderSection } from "./ProviderSection";
+import { SchemaIndexPanel } from "./SchemaIndexPanel";
 
 type Tab = "general" | "providers" | "schema-index" | "advanced";
 
@@ -50,11 +51,7 @@ export function SettingsDialog({ open, onOpenChange, initialTab }: Props) {
                   General settings — coming later.
                 </p>
               )}
-              {tab === "schema-index" && (
-                <p className="text-muted-foreground text-xs">
-                  Schema index panel — see Task 16.
-                </p>
-              )}
+              {tab === "schema-index" && <SchemaIndexPanel />}
               {tab === "advanced" && (
                 <p className="text-muted-foreground text-xs">Reserved.</p>
               )}

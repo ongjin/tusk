@@ -21,9 +21,11 @@ import { useTheme } from "@/hooks/use-theme";
 import { aiSecretListPresent } from "@/lib/keychain";
 import { useAi } from "@/store/ai";
 import { useConnections } from "@/store/connections";
+import { useSchemaIndex } from "@/store/schemaIndex";
 import { useSettings } from "@/store/settings";
 import { useTabs } from "@/store/tabs";
 import { useTransactions } from "@/store/transactions";
+import type { SchemaIndexProgress } from "@/lib/types";
 
 function App() {
   const { theme, toggle } = useTheme();
@@ -207,6 +209,24 @@ function App() {
       if (unlistenStart) unlistenStart();
       if (unlistenDone) unlistenDone();
       clearActive();
+    };
+  }, []);
+
+  // Schema index progress events.
+  useEffect(() => {
+    let unA: (() => void) | null = null;
+    let unB: (() => void) | null = null;
+    let cancelled = false;
+    void listen<SchemaIndexProgress>("schema_index:progress", (e) => {
+      useSchemaIndex.getState().set(e.payload);
+    }).then((fn) => (cancelled ? fn() : (unA = fn)));
+    void listen<SchemaIndexProgress>("schema_index:done", (e) => {
+      useSchemaIndex.getState().set({ ...e.payload, state: "done" });
+    }).then((fn) => (cancelled ? fn() : (unB = fn)));
+    return () => {
+      cancelled = true;
+      unA?.();
+      unB?.();
     };
   }, []);
 

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 
 import {
@@ -11,6 +12,8 @@ import {
 } from "@/lib/tauri";
 import type { ConnectionListItem, NewConnection } from "@/lib/types";
 import { useSchema } from "@/store/schema";
+import { useSettings } from "@/store/settings";
+import { useAi } from "@/store/ai";
 
 interface ConnectionsState {
   items: ConnectionListItem[];
@@ -55,6 +58,23 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
     await connectCmd(id);
     set({ activeId: id });
     await get().refresh();
+    const auto = useSettings.getState().schemaIndexAutoSync;
+    if (auto) {
+      const aiState = useAi.getState();
+      const settings = useSettings.getState();
+      const embed = settings.defaultEmbeddingProvider;
+      const cfg = aiState.providers[embed];
+      if (cfg.embeddingModel && (cfg.apiKeyPresent || embed === "ollama")) {
+        void invoke("sync_schema_index", {
+          connectionId: id,
+          embeddingProvider: embed,
+          embeddingModel: cfg.embeddingModel,
+          baseUrl: cfg.baseUrl,
+        }).catch((e) => {
+          console.error("auto sync_schema_index failed", e);
+        });
+      }
+    }
   },
 
   async disconnect(id) {
