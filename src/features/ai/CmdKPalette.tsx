@@ -10,6 +10,7 @@ import { aiSecretGet } from "@/lib/keychain";
 import type { SchemaTopK } from "@/lib/ai/types";
 import { useAi } from "@/store/ai";
 import { useSettings } from "@/store/settings";
+import { SqlDiffView } from "./SqlDiffView";
 
 export interface ApplyMeta {
   prompt: string;
@@ -193,9 +194,15 @@ export function CmdKPalette({
           {defaultGen} · {cfg.generationModel} · top-K {ragTopK}
         </p>
         {streamed && (
-          <pre className="bg-muted mt-3 max-h-64 overflow-auto rounded p-2 text-xs">
-            {streamed}
-          </pre>
+          selection ? (
+            <div className="mt-3">
+              <SqlDiffView original={selection} modified={streamed} />
+            </div>
+          ) : (
+            <pre className="bg-muted mt-3 max-h-64 overflow-auto rounded p-2 text-xs">
+              {streamed}
+            </pre>
+          )
         )}
         {meta && (
           <div className="mt-3 flex justify-end gap-2">
