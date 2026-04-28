@@ -27,6 +27,10 @@ export function EditorPane() {
 
   const activeTab = tabs.find((t) => t.id === activeId)!;
   const connectionForTab = activeTab.connectionId ?? activeConnection;
+  const connectionName = useConnections(
+    (s) =>
+      s.items.find((c) => c.id === connectionForTab)?.name ?? connectionForTab,
+  );
 
   const run = useCallback(async () => {
     if (!connectionForTab) {
@@ -77,7 +81,7 @@ export function EditorPane() {
         <div className="border-border flex items-center justify-between border-b px-3 py-1.5">
           <span className="text-muted-foreground text-xs">
             {connectionForTab
-              ? `Running on: ${connectionForTab}`
+              ? `Running on: ${connectionName}`
               : "No connection"}
           </span>
           <Button size="sm" onClick={run} disabled={activeTab.busy}>

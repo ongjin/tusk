@@ -14,11 +14,20 @@ export function EditorTabs() {
   return (
     <div className="border-border bg-muted/30 flex items-center gap-1 border-b px-2 py-1">
       {tabs.map((t) => (
-        <button
+        <div
           key={t.id}
+          role="tab"
+          tabIndex={0}
+          aria-selected={t.id === activeId}
           onClick={() => setActive(t.id)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setActive(t.id);
+            }
+          }}
           className={cn(
-            "group flex items-center gap-1 rounded px-2 py-1 text-xs",
+            "group flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-xs",
             t.id === activeId ? "bg-background border" : "hover:bg-accent",
           )}
         >
@@ -26,8 +35,9 @@ export function EditorTabs() {
             {t.title}
             {t.dirty && "•"}
           </span>
-          <span
-            role="button"
+          <button
+            type="button"
+            aria-label={`Close ${t.title}`}
             className="rounded p-0.5 opacity-50 hover:opacity-100"
             onClick={(e) => {
               e.stopPropagation();
@@ -35,8 +45,8 @@ export function EditorTabs() {
             }}
           >
             <X className="size-3" />
-          </span>
-        </button>
+          </button>
+        </div>
       ))}
       <Button size="icon-xs" variant="ghost" onClick={() => newTab(null)}>
         <Plus />
