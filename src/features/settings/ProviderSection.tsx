@@ -57,8 +57,10 @@ export function ProviderSection() {
                 setEnabledProviders([...enabledProviders, meta.id]);
               }
               toast.success(`${meta.label} key saved`);
+              return true;
             } catch (e) {
               toast.error(`Failed to save: ${asMessage(e)}`);
+              return false;
             }
           }}
           onDelete={async () => {
@@ -173,7 +175,7 @@ interface CardProps {
   config: ProviderConfig;
   enabled: boolean;
   onToggle: (v: boolean) => void;
-  onSave: (key: string) => Promise<void>;
+  onSave: (key: string) => Promise<boolean>;
   onDelete: () => Promise<void>;
   onConfigChange: (patch: Partial<ProviderConfig>) => void;
   onTest: () => void;
@@ -217,12 +219,15 @@ function ProviderCard(p: CardProps) {
           />
           <Button
             size="sm"
-            disabled={busy || key.length === 0}
+            disabled={busy || key.trim().length === 0}
             onClick={async () => {
               setBusy(true);
-              await p.onSave(key);
-              setKey("");
-              setBusy(false);
+              try {
+                const ok = await p.onSave(key.trim());
+                if (ok) setKey("");
+              } finally {
+                setBusy(false);
+              }
             }}
           >
             Save
@@ -234,8 +239,11 @@ function ProviderCard(p: CardProps) {
               disabled={busy}
               onClick={async () => {
                 setBusy(true);
-                await p.onDelete();
-                setBusy(false);
+                try {
+                  await p.onDelete();
+                } finally {
+                  setBusy(false);
+                }
               }}
             >
               Remove
