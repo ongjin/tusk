@@ -1,11 +1,17 @@
-import { useState, type KeyboardEvent } from "react";
+import { useState } from "react";
 
 import { renderCell } from "@/features/results/cells";
 import type { Cell, ResultMeta } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { pkValuesOf, usePendingChanges } from "@/store/pendingChanges";
 
-import { cellAsString, cellsEqual, parseCellLike } from "./cellSerde";
+import { cellAsString } from "./cellSerde";
+import { BigintWidget } from "./widgets/Bigint";
+import { BoolWidget } from "./widgets/Bool";
+import { IntWidget } from "./widgets/Int";
+import { NumericWidget } from "./widgets/Numeric";
+import { TextWidget } from "./widgets/Text";
+import type { WidgetProps } from "./widgets/types";
 
 interface Props {
   value: Cell;
@@ -14,10 +20,30 @@ interface Props {
   meta: ResultMeta;
 }
 
+function renderWidget(typeName: string, props: WidgetProps) {
+  switch (typeName) {
+    case "int2":
+    case "int4":
+      return <IntWidget {...props} />;
+    case "int8":
+      return <BigintWidget {...props} />;
+    case "numeric":
+      return <NumericWidget {...props} />;
+    case "bool":
+      return <BoolWidget {...props} />;
+    case "text":
+    case "varchar":
+    case "bpchar":
+    default:
+      return <TextWidget {...props} />;
+  }
+}
+
 export function EditableCell({ value, columnIndex, row, meta }: Props) {
   const upsertEdit = usePendingChanges((s) => s.upsertEdit);
 
-  const columnName = meta.columnTypes[columnIndex]?.name ?? "";
+  const columnMeta = meta.columnTypes[columnIndex];
+  const columnName = columnMeta?.name ?? "";
   const pkValues = meta.editable ? pkValuesOf(meta, row) : [];
   const rowKey = meta.editable ? JSON.stringify(pkValues) : "";
 
@@ -36,45 +62,29 @@ export function EditableCell({ value, columnIndex, row, meta }: Props) {
     return <>{renderCell(value)}</>;
   }
 
-  if (editing) {
-    const initial = cellAsString(display);
-    const onSave = (text: string) => {
-      const next = parseCellLike(text, value);
-      // Only register an edit when it actually differs from the current row value.
-      if (!cellsEqual(next, value)) {
-        if (meta.table) {
-          upsertEdit({
-            table: meta.table,
-            pkColumns: meta.pkColumns,
-            pkValues,
-            column: columnName,
-            original: value,
-            next,
-            capturedRow: row,
-            capturedColumns: meta.columnTypes.map((c) => c.name),
-          });
-        }
+  if (editing && columnMeta) {
+    const onCommit = (next: Cell) => {
+      if (meta.table) {
+        upsertEdit({
+          table: meta.table,
+          pkColumns: meta.pkColumns,
+          pkValues,
+          column: columnName,
+          original: value,
+          next,
+          capturedRow: row,
+          capturedColumns: meta.columnTypes.map((c) => c.name),
+        });
       }
       setEditing(false);
     };
-    const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        setEditing(false);
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        (e.target as HTMLInputElement).blur();
-      }
-    };
-    return (
-      <input
-        autoFocus
-        defaultValue={initial}
-        onBlur={(e) => onSave(e.target.value)}
-        onKeyDown={onKey}
-        className="bg-background border-input w-full rounded-sm border px-1 py-0 font-mono text-xs outline-none focus:ring-1 focus:ring-amber-500"
-      />
-    );
+    const onCancel = () => setEditing(false);
+    return renderWidget(columnMeta.typeName, {
+      initial: display,
+      nullable: columnMeta.nullable,
+      onCommit,
+      onCancel,
+    });
   }
 
   return (
