@@ -5,6 +5,7 @@ import type {
   ConnectionRecord,
   NewConnection,
   QueryResult,
+  SshHost,
   TuskErrorPayload,
 } from "./types";
 import { TuskError } from "./types";
@@ -58,4 +59,8 @@ export async function executeQuery(
   sql: string,
 ): Promise<QueryResult> {
   return invoke<QueryResult>("execute_query", { connectionId, sql });
+}
+
+export async function listKnownSshHosts(): Promise<SshHost[]> {
+  return invoke<SshHost[]>("list_known_ssh_hosts");
 }

@@ -69,3 +69,12 @@ export class TuskError extends Error {
     this.name = `TuskError(${payload.kind})`;
   }
 }
+
+export interface SshHost {
+  alias: string;
+  hostname: string | null;
+  user: string | null;
+  port: number | null;
+  identityFile: string | null;
+  proxyJump: string | null;
+}
