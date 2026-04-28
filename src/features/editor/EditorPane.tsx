@@ -123,8 +123,11 @@ export function EditorPane() {
             error={activeTab.lastError}
             busy={activeTab.busy}
           />
-          {activeTab.lastResult && (
-            <ResultsGrid result={activeTab.lastResult} />
+          {activeTab.lastResult && connectionForTab && (
+            <ResultsGrid
+              result={activeTab.lastResult}
+              connId={connectionForTab}
+            />
           )}
         </div>
       </div>

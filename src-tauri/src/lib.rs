@@ -41,6 +41,7 @@ pub fn run() {
             commands::transactions::tx_begin,
             commands::transactions::tx_commit,
             commands::transactions::tx_rollback,
+            commands::fk_lookup::fk_lookup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

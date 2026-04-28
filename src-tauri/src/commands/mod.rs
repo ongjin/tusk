@@ -1,4 +1,5 @@
 pub mod connections;
+pub mod fk_lookup;
 pub mod history;
 pub mod meta;
 pub mod query;

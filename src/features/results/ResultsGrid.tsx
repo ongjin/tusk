@@ -13,7 +13,13 @@ import type { Cell, QueryResult } from "@/lib/types";
 
 type Row = Record<string, Cell>;
 
-export function ResultsGrid({ result }: { result: QueryResult }) {
+export function ResultsGrid({
+  result,
+  connId,
+}: {
+  result: QueryResult;
+  connId: string;
+}) {
   const data = useMemo<Row[]>(
     () =>
       result.rows.map((row) => {
@@ -44,10 +50,11 @@ export function ResultsGrid({ result }: { result: QueryResult }) {
             columnIndex={columnIndex}
             row={result.rows[info.row.index]}
             meta={result.meta}
+            connId={connId}
           />
         ),
       })),
-    [result.columns, result.rows, result.meta],
+    [result.columns, result.rows, result.meta, connId],
   );
 
   const table = useReactTable({

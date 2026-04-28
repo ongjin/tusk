@@ -10,6 +10,8 @@ import { BigintWidget } from "./widgets/Bigint";
 import { BoolWidget } from "./widgets/Bool";
 import { ByteaWidget } from "./widgets/Bytea";
 import { DateWidget } from "./widgets/Date";
+import { EnumWidget } from "./widgets/Enum";
+import { FkWidget } from "./widgets/Fk";
 import { IntWidget } from "./widgets/Int";
 import { JsonWidget } from "./widgets/Json";
 import { NumericWidget } from "./widgets/Numeric";
@@ -25,6 +27,7 @@ interface Props {
   columnIndex: number;
   row: Cell[];
   meta: ResultMeta;
+  connId: string;
 }
 
 function renderWidget(typeName: string, props: WidgetProps) {
@@ -65,7 +68,7 @@ function renderWidget(typeName: string, props: WidgetProps) {
   }
 }
 
-export function EditableCell({ value, columnIndex, row, meta }: Props) {
+export function EditableCell({ value, columnIndex, row, meta, connId }: Props) {
   const upsertEdit = usePendingChanges((s) => s.upsertEdit);
 
   const columnMeta = meta.columnTypes[columnIndex];
@@ -107,12 +110,45 @@ export function EditableCell({ value, columnIndex, row, meta }: Props) {
       setEditing(false);
     };
     const onCancel = () => setEditing(false);
-    return renderWidget(columnMeta.typeName, {
+    const widgetProps: WidgetProps = {
       initial: display,
       nullable: columnMeta.nullable,
       onCommit,
       onCancel,
-    });
+    };
+    if (columnMeta.enumValues && columnMeta.enumValues.length > 0) {
+      return (
+        <EnumWidget
+          {...widgetProps}
+          enumValues={columnMeta.enumValues}
+          typeName={columnMeta.typeName}
+        />
+      );
+    }
+    if (columnMeta.fk) {
+      const originalKind = ((): "Int" | "Bigint" | "Text" | "Uuid" => {
+        switch (columnMeta.typeName) {
+          case "int2":
+          case "int4":
+            return "Int";
+          case "int8":
+            return "Bigint";
+          case "uuid":
+            return "Uuid";
+          default:
+            return "Text";
+        }
+      })();
+      return (
+        <FkWidget
+          {...widgetProps}
+          connId={connId}
+          fk={columnMeta.fk}
+          originalKind={originalKind}
+        />
+      );
+    }
+    return renderWidget(columnMeta.typeName, widgetProps);
   }
 
   return (
