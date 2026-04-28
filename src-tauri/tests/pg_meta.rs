@@ -96,3 +96,64 @@ async fn fk_target_resolved() {
     assert_eq!(fk.table, "pg_meta_parent");
     assert_eq!(fk.column, "id");
 }
+
+#[tokio::test]
+async fn cache_returns_stale_meta_within_ttl() {
+    // Prove fetch_table_meta consults the cache: drop the table after first
+    // fetch and confirm the second fetch still returns cached metadata
+    // (would error if it hit the DB).
+    let pool = pool().await;
+    sqlx::query("DROP TABLE IF EXISTS pg_meta_cache_t CASCADE")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("CREATE TABLE pg_meta_cache_t (id int primary key, name text)")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let cache = MetaCache::new();
+    let first = fetch_table_meta(&pool, &cache, "c1", "public", "pg_meta_cache_t")
+        .await
+        .unwrap();
+    assert_eq!(first.columns.len(), 2);
+
+    // Drop the table; if cache is consulted, second call still returns 2 cols.
+    sqlx::query("DROP TABLE pg_meta_cache_t")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let second = fetch_table_meta(&pool, &cache, "c1", "public", "pg_meta_cache_t")
+        .await
+        .unwrap();
+    assert_eq!(second.columns.len(), 2);
+}
+
+#[tokio::test]
+async fn invalidate_conn_clears_entries() {
+    let pool = pool().await;
+    sqlx::query("DROP TABLE IF EXISTS pg_meta_inv_t CASCADE")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("CREATE TABLE pg_meta_inv_t (id int primary key)")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let cache = MetaCache::new();
+    let _ = fetch_table_meta(&pool, &cache, "c1", "public", "pg_meta_inv_t")
+        .await
+        .unwrap();
+
+    sqlx::query("DROP TABLE pg_meta_inv_t")
+        .execute(&pool)
+        .await
+        .unwrap();
+    cache.invalidate_conn("c1");
+
+    // After invalidation + DROP, fetching must hit the DB and error out.
+    let res = fetch_table_meta(&pool, &cache, "c1", "public", "pg_meta_inv_t").await;
+    assert!(res.is_err(), "expected error after invalidate, got {res:?}");
+}

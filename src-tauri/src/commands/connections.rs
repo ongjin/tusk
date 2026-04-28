@@ -55,9 +55,11 @@ pub async fn add_connection(
 pub async fn delete_connection(
     store: State<'_, StateStore>,
     registry: State<'_, ConnectionRegistry>,
+    meta_cache: State<'_, MetaCache>,
     id: String,
 ) -> TuskResult<()> {
     registry.disconnect(&id)?;
+    meta_cache.invalidate_conn(&id);
     secrets::delete_password(&id)?;
     store.delete(&id)?;
     Ok(())

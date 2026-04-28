@@ -177,7 +177,7 @@ pub async fn fetch_table_meta(
         .map_err(|e| TuskError::State(format!("pg_meta fk: {e}")))?;
 
     let mut columns = Vec::with_capacity(col_rows.len());
-    for (name, oid_i32, _type_name, nullable, is_enum, type_oid) in col_rows {
+    for (name, oid_i32, type_name, nullable, is_enum, type_oid) in col_rows {
         let enum_values = if is_enum {
             let evs: Vec<(String,)> = sqlx::query_as(
                 "SELECT enumlabel FROM pg_enum WHERE enumtypid = $1 ORDER BY enumsortorder",
@@ -198,10 +198,19 @@ pub async fn fetch_table_meta(
                 table: t.clone(),
                 column: c.clone(),
             });
+        // Prefer decoder's canonical PgTypeName mapping when known (matches frontend
+        // PgTypeName union); fall back to pg_type.typname for enum / domain / array /
+        // extension types that the decoder doesn't enumerate.
+        let canonical = crate::db::decoder::pg_type_name(oid_i32 as u32);
+        let resolved_type_name = if canonical == "unknown" {
+            type_name
+        } else {
+            canonical.to_string()
+        };
         columns.push(ColumnMetaRow {
             name,
             oid: oid_i32 as u32,
-            type_name: crate::db::decoder::pg_type_name(oid_i32 as u32).to_string(),
+            type_name: resolved_type_name,
             nullable,
             enum_values,
             fk,
