@@ -1,6 +1,7 @@
 import { invoke as rawInvoke } from "@tauri-apps/api/core";
 
 import type {
+  ColumnInfo,
   ConnectionListItem,
   ConnectionRecord,
   NewConnection,
@@ -63,4 +64,21 @@ export async function executeQuery(
 
 export async function listKnownSshHosts(): Promise<SshHost[]> {
   return invoke<SshHost[]>("list_known_ssh_hosts");
+}
+
+export async function listDatabases(connectionId: string) {
+  return invoke<string[]>("list_databases", { connectionId });
+}
+export async function listSchemas(connectionId: string) {
+  return invoke<string[]>("list_schemas", { connectionId });
+}
+export async function listTables(connectionId: string, schema: string) {
+  return invoke<string[]>("list_tables", { connectionId, schema });
+}
+export async function listColumns(
+  connectionId: string,
+  schema: string,
+  table: string,
+) {
+  return invoke<ColumnInfo[]>("list_columns", { connectionId, schema, table });
 }

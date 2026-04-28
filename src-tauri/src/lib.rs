@@ -31,6 +31,10 @@ pub fn run() {
             commands::connections::disconnect,
             commands::query::execute_query,
             commands::ssh::list_known_ssh_hosts,
+            commands::schema::list_databases,
+            commands::schema::list_schemas,
+            commands::schema::list_tables,
+            commands::schema::list_columns,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

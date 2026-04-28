@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { ConnectionForm } from "@/features/connections/ConnectionForm";
 import { ConnectionList } from "@/features/connections/ConnectionList";
+import { SchemaTree } from "@/features/schema/SchemaTree";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/hooks/use-theme";
 import { useConnections } from "@/store/connections";
@@ -35,15 +36,18 @@ function App() {
 
   return (
     <div className="bg-background text-foreground grid h-full grid-cols-[280px_1fr]">
-      <aside className="border-border flex flex-col gap-3 border-r p-3">
-        <div className="flex items-center justify-between">
+      <aside className="border-border flex flex-col border-r">
+        <div className="flex items-center justify-between p-3">
           <h1 className="text-lg font-semibold">Tusk</h1>
           <Button variant="ghost" size="icon-sm" onClick={toggle}>
             {theme === "light" ? <Moon /> : <Sun />}
           </Button>
         </div>
-        <ConnectionForm />
-        <ConnectionList />
+        <div className="border-border flex flex-col gap-2 border-b p-3">
+          <ConnectionForm />
+          <ConnectionList />
+        </div>
+        <SchemaTree />
       </aside>
 
       <main className="flex flex-col gap-3 p-4">
