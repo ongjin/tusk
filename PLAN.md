@@ -274,12 +274,74 @@ LLM이 직접 호출 가능한 도구:
 - SQL 에디터 (Monaco) + 멀티 탭
 - 기본 result grid (TanStack Table 가상화)
 
-### Week 3 — Result + 트랜잭션 + UX
+### Week 3 — Result 인라인 편집 (DataGrip 패턴) + 트랜잭션
 
-- Cell 편집/insert/update (트랜잭션 명시)
-- CSV/JSON export
-- 키보드 단축키 셋업 (Cmd+Enter 실행, Cmd+T 새 탭 등)
-- 쿼리 히스토리 기본 (SQLite 저장)
+이 주가 Tusk의 결정적 차별점 중 하나. 디테일이 많으니 풀파워로 한 주 잡음.
+
+#### 인라인 편집 UX (핵심)
+
+- 셀 더블클릭 → 인라인 에디터, 타입에 따라 다른 위젯
+- 편집된 셀은 노란 highlight + 원래 값 호버로 보임
+- 여러 row 동시 편집 가능, 행 추가/삭제도 같은 패턴
+- 상단/하단 툴바에 pending change 카운트 (`(2 pending)`)
+- **Preview** 버튼 → 생성될 SQL 미리보기 모달 (UPDATE/INSERT/DELETE 묶음)
+- **Submit** → BEGIN → statements → 결과 OK면 COMMIT 버튼 노출, 실패하면 자동 ROLLBACK + 에러 표시
+- **Revert** → 모든 pending 편집 취소, 원본 값 복원
+- 키보드: `Tab`/`Shift+Tab`/`Enter`로 셀 이동, `Esc`로 편집 취소, `Cmd+S`로 submit
+
+#### 타입별 인라인 에디터
+
+- `text`/`varchar` → 텍스트 (개행 가능 멀티라인 옵션)
+- `int`/`numeric` → 숫자 입력 + 범위 검증 (`numeric(10,2)`이면 자릿수 검증)
+- `bool` → 토글 / 체크박스
+- `timestamp`/`timestamptz` → 날짜+시간 picker + 타임존 표시
+- `date` → 날짜 picker
+- `enum` → dropdown (DB에서 enum 값 fetch)
+- FK references 컬럼 → dropdown (참조 테이블 lookup, 검색 가능)
+- `jsonb`/`json` → 펼쳐지는 JSON 에디터 (Monaco 미니 인스턴스, syntax highlight + validation)
+- `bytea` → hex/base64 토글, 큰 값은 파일로 export 옵션
+- `uuid` → 텍스트 + "Generate UUID" 버튼
+- `vector` (pgvector) → 읽기 전용 + 차원 표시 (편집은 UX 어려우니 일단 X)
+- 모든 nullable 컬럼 → 항상 "Set NULL" 명시적 버튼
+
+#### Primary Key 감지 (편집 가능 여부의 게이트)
+
+- 결과셋 row를 UPDATE/DELETE하려면 PK 필요
+- 쿼리 결과 컬럼 메타데이터에서 source table + PK 추론 (`pg_attribute` 조회)
+- PK 없는 결과셋(JOIN, GROUP BY, 서브쿼리 등) → 편집 disabled, "Read-only result (no primary key)" 표시
+- 단일 테이블 SELECT라도 PK 컬럼이 결과에 빠져있으면 편집 disabled
+- 편집 가능한 결과는 grid 좌상단에 작은 ✏️ 인디케이터
+
+#### 충돌 감지 (DataGrip보다 한 단계 위)
+
+- 편집 시작 시점의 row 원본 값 저장
+- Submit 시점에 `WHERE pk = X AND col1 = original AND col2 = original ...` 형태로 UPDATE 생성 (선택적 옵션)
+- Affected rows = 0이면 "Row was modified by someone else" 경고 → 사용자가 force/cancel 결정
+- 또는 더 단순한 방식: submit 직전에 다시 SELECT해서 비교 후 diff 표시
+
+#### 명시적 트랜잭션 모드
+
+- 상단 토글: **Auto-commit ON / OFF**
+- OFF 상태에서 모든 쿼리(직접 SQL + 인라인 편집 + Cmd+K AI 쿼리) → 트랜잭션 안에서 실행
+- 트랜잭션 활성 시 항상 보이는 인디케이터: `🟡 Transaction in progress (3 stmts)`
+- 명시적 COMMIT / ROLLBACK 버튼 (단축키: `Cmd+Shift+C` / `Cmd+Shift+R`)
+- 커밋 안 된 채로 앱 닫으려 하면 경고 모달
+- 트랜잭션 내 실행된 모든 statement 히스토리 사이드 패널에 보임
+
+#### 그 외 Week 3 항목
+
+- CSV / JSON / SQL INSERT export (선택 row만 또는 전체)
+- 키보드 단축키 셋업 (Cmd+Enter 실행, Cmd+T 새 탭, Cmd+W 탭 닫기, Cmd+P 명령 팔레트 등)
+- 쿼리 히스토리 기본 저장 (SQLite, 시간순)
+- 셀 우클릭 컨텍스트 메뉴: Copy, Copy as INSERT, Set NULL, Filter by this value, "Find similar" (vector 컬럼)
+
+#### 위험/주의
+
+- 인라인 편집은 사용자 데이터 직접 변경 → 한 번 망가지면 신뢰 즉사
+- destructive 쿼리(DELETE/TRUNCATE/DROP) confirmation은 Week 4 AI 모달과 통합 설계
+- Submit 시 항상 명시적 트랜잭션으로 감싸기 (auto-commit OFF여도, ON이여도)
+- 큰 결과셋(10만 row+) 편집 시 메모리 폭발 방지 — 편집된 row만 추적
+- 컬럼 타입이 unknown(custom type)인 경우 텍스트 fallback + 경고
 
 ### Week 4 — AI 1차 (자연어 → SQL)
 

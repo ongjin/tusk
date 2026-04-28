@@ -50,6 +50,7 @@ End user, 처음 켰을 때:
 ```
 
 **ActiveConnection**:
+
 ```rust
 struct ActiveConnection {
     pool: PgPool,
@@ -72,14 +73,14 @@ impl Drop for TunnelHandle {
 
 ## 4. Libraries
 
-| 영역 | 라이브러리 | 사유 |
-|---|---|---|
-| Postgres | `sqlx 0.8` (runtime-tokio-rustls, postgres, uuid, chrono, json) | PLAN 명시 + compile-time check 가치 |
-| 로컬 메타데이터 | `rusqlite 0.32` (bundled) | 단일 파일 SQLite, 마이그레이션 단순 |
-| 비밀 보관 | `keyring 3` | OS keychain 통합 (macOS/Win/Linux) |
-| 비동기 런타임 | `tokio 1` (full) | sqlx 의존 |
-| 에러 | `anyhow` (애플리케이션) + `thiserror` (라이브러리 경계) | Rust 표준 패턴 |
-| SSH | **별도 crate 없음** — 시스템 `ssh` 명령 spawn | `ssh -G`가 ProxyJump/Match/Include 다 resolve. 재발명 금지. |
+| 영역            | 라이브러리                                                      | 사유                                                        |
+| --------------- | --------------------------------------------------------------- | ----------------------------------------------------------- |
+| Postgres        | `sqlx 0.8` (runtime-tokio-rustls, postgres, uuid, chrono, json) | PLAN 명시 + compile-time check 가치                         |
+| 로컬 메타데이터 | `rusqlite 0.32` (bundled)                                       | 단일 파일 SQLite, 마이그레이션 단순                         |
+| 비밀 보관       | `keyring 3`                                                     | OS keychain 통합 (macOS/Win/Linux)                          |
+| 비동기 런타임   | `tokio 1` (full)                                                | sqlx 의존                                                   |
+| 에러            | `anyhow` (애플리케이션) + `thiserror` (라이브러리 경계)         | Rust 표준 패턴                                              |
+| SSH             | **별도 crate 없음** — 시스템 `ssh` 명령 spawn                   | `ssh -G`가 ProxyJump/Match/Include 다 resolve. 재발명 금지. |
 
 `russh`/`ssh2`를 안 쓰는 이유: ProxyJump 직접 구현 부담, `ssh-agent`/1Password 통합 잡일, 환경별 디버깅 지옥. 사용자 환경에서 `ssh <alias>`가 동작하면 우리 코드도 무조건 동작하게 만드는 게 우선.
 
@@ -139,6 +140,7 @@ pub struct ConnectionRegistry {
 1. **로컬 free port 할당**: `TcpListener::bind("127.0.0.1:0")?.local_addr()?.port()` → drop.
    - Race condition은 OK — 99% 케이스 안전. 실패 시 retry 1회.
 2. **ssh spawn**:
+
    ```rust
    Command::new("ssh")
        .args([
@@ -153,8 +155,10 @@ pub struct ConnectionRegistry {
        .stderr(Stdio::piped())
        .spawn()?
    ```
+
    - `manual` 모드: `-i <key_path>`, `-p <port>`, `user@host` 추가.
    - `alias` 모드: alias 그대로 마지막 인자 (`ssh -G`로 이미 검증됨).
+
 3. **포트 readiness**: `tokio::net::TcpStream::connect(("127.0.0.1", local))`을 50ms 간격, 최대 5초까지 polling.
    - 성공: `TunnelHandle` 반환.
    - 실패: child kill + stderr 마지막 N줄 포함한 `TuskError::Tunnel` 반환.
@@ -241,7 +245,7 @@ pub struct ConnectionRegistry {
   ```ts
   type Tab = {
     id: string;
-    title: string;          // "Untitled 1" or 첫 줄 추출
+    title: string; // "Untitled 1" or 첫 줄 추출
     connectionId: string | null;
     sql: string;
     dirty: boolean;
@@ -326,12 +330,14 @@ pub enum TuskError {
 ## 13. Testing strategy
 
 **Rust unit (in-process)**:
+
 - `db::state` — rusqlite 인메모리 DB로 CRUD round-trip.
 - `ssh::config::extract_aliases` — `~/.ssh/config` fixture 파싱.
 - `ssh::config::resolve_via_ssh_g` — `which ssh` 통과 시만 (CI에서는 ubuntu 기본 ssh 사용).
 - `errors` 직렬화 round-trip.
 
 **Rust integration (docker)**:
+
 - `tests/postgres.rs` — `docker compose up -d postgres:16-alpine`로 실DB 띄우고 connect/query/schema 명령.
 - 첫 슬라이스에 docker compose 파일 추가 (`infra/postgres/docker-compose.yml`).
 

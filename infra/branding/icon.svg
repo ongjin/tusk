@@ -1,0 +1,108 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0F1B30"/>
+      <stop offset="0.55" stop-color="#070C18"/>
+      <stop offset="1" stop-color="#02050C"/>
+    </linearGradient>
+
+    <radialGradient id="aiGlow" cx="800" cy="220" r="320" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#67E8F9" stop-opacity="0.30"/>
+      <stop offset="0.45" stop-color="#22D3EE" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#0891B2" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="tuskGrad" x1="180" y1="900" x2="820" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8B6F45"/>
+      <stop offset="0.15" stop-color="#B8966A"/>
+      <stop offset="0.38" stop-color="#DCC192"/>
+      <stop offset="0.65" stop-color="#F2DDB0"/>
+      <stop offset="0.90" stop-color="#FCF1D6"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
+    </linearGradient>
+
+    <linearGradient id="sheenGrad" x1="200" y1="240" x2="700" y2="780" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="0.45" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <radialGradient id="baseShade" cx="220" cy="850" r="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#000000" stop-opacity="0.55"/>
+      <stop offset="0.7" stop-color="#000000" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="rim" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.10"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.04"/>
+    </linearGradient>
+
+    <filter id="tuskShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="20"/>
+      <feOffset dx="6" dy="20" result="shadow"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.55"/></feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <clipPath id="squircle">
+      <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224"/>
+    </clipPath>
+
+    <!-- Tusk silhouette as a reusable clip path so highlights stay inside it. -->
+    <clipPath id="tuskClip">
+      <path d="
+        M 320 880
+        C 540 900 800 580 820 220
+        C 760 280 480 660 180 760
+        C 80 760 120 920 320 880
+        Z
+      "/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#squircle)">
+    <rect width="1024" height="1024" fill="url(#bgGrad)"/>
+    <rect width="1024" height="1024" fill="url(#aiGlow)"/>
+
+    <g stroke="#1A2A45" stroke-width="1" opacity="0.16">
+      <line x1="0" y1="256" x2="1024" y2="256"/>
+      <line x1="0" y1="512" x2="1024" y2="512"/>
+      <line x1="0" y1="768" x2="1024" y2="768"/>
+      <line x1="256" y1="0" x2="256" y2="1024"/>
+      <line x1="512" y1="0" x2="512" y2="1024"/>
+      <line x1="768" y1="0" x2="768" y2="1024"/>
+    </g>
+
+    <!-- Tusk body with drop shadow -->
+    <g filter="url(#tuskShadow)">
+      <!-- Solid base fill -->
+      <path d="
+        M 320 880
+        C 540 900 800 580 820 220
+        C 760 280 480 660 180 760
+        C 80 760 120 920 320 880
+        Z
+      " fill="url(#tuskGrad)"/>
+
+      <!-- All highlights / shadows clipped to inside the tusk -->
+      <g clip-path="url(#tuskClip)">
+        <!-- Sheen sweeping across upper-back face -->
+        <ellipse cx="500" cy="430" rx="520" ry="80" transform="rotate(-44 500 430)" fill="url(#sheenGrad)" opacity="0.85"/>
+        <!-- Base shadow concentrated at the rounded blunt end -->
+        <rect x="0" y="600" width="500" height="400" fill="url(#baseShade)"/>
+      </g>
+
+      <!-- Tip spark -->
+      <circle cx="822" cy="218" r="8" fill="#FFFFFF" opacity="0.95"/>
+      <circle cx="822" cy="218" r="22" fill="#67E8F9" opacity="0.35"/>
+    </g>
+
+    <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224"
+          fill="none" stroke="url(#rim)" stroke-width="2"/>
+  </g>
+</svg>

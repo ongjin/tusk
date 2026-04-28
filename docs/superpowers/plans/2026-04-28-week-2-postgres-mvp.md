@@ -13,13 +13,14 @@
 **Working dir:** `/Users/cyj/workspace/personal/tusk` on `main`.
 
 **Quality gates between tasks:**
+
 ```
 pnpm typecheck && pnpm lint && pnpm format:check
 pnpm rust:check && pnpm rust:lint && pnpm rust:fmt:check
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-Run only the gates relevant to the task (Rust tasks → rust:* + cargo test; Frontend tasks → typecheck/lint/format + `pnpm build`). Last task runs the full set.
+Run only the gates relevant to the task (Rust tasks → rust:\* + cargo test; Frontend tasks → typecheck/lint/format + `pnpm build`). Last task runs the full set.
 
 ---
 
@@ -28,6 +29,7 @@ Run only the gates relevant to the task (Rust tasks → rust:* + cargo test; Fro
 **Goal:** Land cross-cutting building blocks every later task depends on.
 
 **Files:**
+
 - Create: `src-tauri/src/errors.rs`
 - Create: `src-tauri/src/secrets.rs`
 - Modify: `src-tauri/src/lib.rs`
@@ -200,9 +202,10 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ## Task 2: rusqlite state — connection metadata
 
-**Goal:** Persist connection metadata (id, name, host, port, user, db, ssh_*) in a single SQLite file at `app_data_dir()/tusk.db`.
+**Goal:** Persist connection metadata (id, name, host, port, user, db, ssh\_\*) in a single SQLite file at `app_data_dir()/tusk.db`.
 
 **Files:**
+
 - Create: `src-tauri/src/db/mod.rs`
 - Create: `src-tauri/src/db/state.rs`
 - Modify: `src-tauri/src/lib.rs`
@@ -566,6 +569,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 **Goal:** sqlx pool registry + Tauri commands for `connect_direct`, `disconnect`, `list_connections`, `add_connection`, `execute_query`.
 
 **Files:**
+
 - Create: `src-tauri/src/db/pool.rs`
 - Create: `src-tauri/src/commands/connections.rs`
 - Create: `src-tauri/src/commands/query.rs`
@@ -1063,6 +1067,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 **Goal:** Modal to add a connection, list connections in a sidebar, click to connect, run an ad-hoc query, dump results to a `<pre>` so we can verify end-to-end before the editor lands.
 
 **Files:**
+
 - Modify: `src/lib/tauri.ts`
 - Create: `src/lib/types.ts`
 - Create: `src/store/connections.ts`
@@ -1172,7 +1177,10 @@ import type {
 } from "./types";
 import { TuskError } from "./types";
 
-async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+async function invoke<T>(
+  cmd: string,
+  args?: Record<string, unknown>,
+): Promise<T> {
   try {
     return await rawInvoke<T>(cmd, args);
   } catch (e) {
@@ -1195,7 +1203,10 @@ export async function addConnection(
   newConnection: NewConnection,
   password: string,
 ): Promise<ConnectionRecord> {
-  return invoke<ConnectionRecord>("add_connection", { new: newConnection, password });
+  return invoke<ConnectionRecord>("add_connection", {
+    new: newConnection,
+    password,
+  });
 }
 
 export async function deleteConnection(id: string): Promise<void> {
@@ -1363,7 +1374,13 @@ export function ConnectionForm() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) reset();
+      }}
+    >
       <DialogTrigger asChild>
         <Button size="sm">+ New connection</Button>
       </DialogTrigger>
@@ -1427,8 +1444,17 @@ export function ConnectionForm() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {["disable", "allow", "prefer", "require", "verify-ca", "verify-full"].map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                {[
+                  "disable",
+                  "allow",
+                  "prefer",
+                  "require",
+                  "verify-ca",
+                  "verify-full",
+                ].map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -1436,7 +1462,11 @@ export function ConnectionForm() {
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
+          <Button
+            variant="ghost"
+            onClick={() => setOpen(false)}
+            disabled={busy}
+          >
             Cancel
           </Button>
           <Button onClick={onSave} disabled={busy}>
@@ -1448,7 +1478,13 @@ export function ConnectionForm() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-1">
       <Label className="text-muted-foreground text-xs">{label}</Label>
@@ -1677,6 +1713,7 @@ pnpm tauri dev
 ```
 
 Verify:
+
 - Sidebar shows "No connections yet."
 - Click `+ New connection` → fill `name=local`, `host=127.0.0.1`, `port=55432`, `user=tusk`, `password=tusk`, `database=tusk_test`, `sslMode=disable` → Save.
 - Hover the row → click the plug icon → green dot appears, "Connected to local" toast.
@@ -1699,6 +1736,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 **Goal:** Surface `~/.ssh/config` host aliases (with the resolved hostname/user/proxyjump) to the frontend.
 
 **Files:**
+
 - Create: `src-tauri/src/ssh/mod.rs`
 - Create: `src-tauri/src/ssh/config.rs`
 - Create: `src-tauri/src/commands/ssh.rs`
@@ -1933,6 +1971,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 **Goal:** Open an SSH local-forward via system `ssh`, wait for the local port to become reachable, attach the resulting `Child` to the active connection so that disconnect/drop kills it. Wire `connect` to use it for `SshKind::{Alias, Manual}`.
 
 **Files:**
+
 - Create: `src-tauri/src/ssh/tunnel.rs`
 - Modify: `src-tauri/src/ssh/mod.rs`
 - Modify: `src-tauri/src/db/pool.rs`
@@ -2214,6 +2253,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 **Goal:** Three-tab connection form (`Direct TCP` | `SSH alias` | `SSH manual`) with the ssh-config alias dropdown.
 
 **Files:**
+
 - Modify: `src/lib/types.ts` (add `SshHost`, `listKnownSshHosts` types)
 - Modify: `src/lib/tauri.ts`
 - Create: `src/features/connections/SshHostPicker.tsx`
@@ -2325,12 +2365,7 @@ export function SshHostPicker({ selected, onSelect }: Props) {
 Replace the JSX body of `<DialogContent>` to include three tabs. Keep the existing Direct TCP fields under the first tab; add the other two tabs:
 
 ```tsx
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { SshHostPicker } from "./SshHostPicker";
 ```
@@ -2339,7 +2374,13 @@ Replace the `<div className="grid grid-cols-2 gap-3">…</div>` with:
 
 ```tsx
 <Tabs
-  value={draft.sshKind === "None" ? "tcp" : draft.sshKind === "Alias" ? "alias" : "manual"}
+  value={
+    draft.sshKind === "None"
+      ? "tcp"
+      : draft.sshKind === "Alias"
+        ? "alias"
+        : "manual"
+  }
   onValueChange={(v) => {
     if (v === "tcp") setDraft({ ...draft, sshKind: "None" });
     if (v === "alias") setDraft({ ...draft, sshKind: "Alias" });
@@ -2360,7 +2401,14 @@ Replace the `<div className="grid grid-cols-2 gap-3">…</div>` with:
     <SshHostPicker
       selected={
         draft.sshAlias
-          ? { alias: draft.sshAlias, hostname: null, user: null, port: null, identityFile: null, proxyJump: null }
+          ? {
+              alias: draft.sshAlias,
+              hostname: null,
+              user: null,
+              port: null,
+              identityFile: null,
+              proxyJump: null,
+            }
           : null
       }
       onSelect={(host) =>
@@ -2384,7 +2432,9 @@ Replace the `<div className="grid grid-cols-2 gap-3">…</div>` with:
       <Field label="SSH host">
         <Input
           value={draft.sshHost ?? ""}
-          onChange={(e) => setDraft({ ...draft, sshHost: e.target.value || null })}
+          onChange={(e) =>
+            setDraft({ ...draft, sshHost: e.target.value || null })
+          }
         />
       </Field>
       <Field label="SSH port">
@@ -2399,7 +2449,9 @@ Replace the `<div className="grid grid-cols-2 gap-3">…</div>` with:
       <Field label="SSH user">
         <Input
           value={draft.sshUser ?? ""}
-          onChange={(e) => setDraft({ ...draft, sshUser: e.target.value || null })}
+          onChange={(e) =>
+            setDraft({ ...draft, sshUser: e.target.value || null })
+          }
         />
       </Field>
       <Field label="SSH key path">
@@ -2450,6 +2502,7 @@ pnpm tauri dev
 ```
 
 Verify:
+
 - "+ New connection" → tabs visible.
 - `SSH alias` tab lists `~/.ssh/config` aliases.
 - Click an alias → fields under it auto-fill (host/user/port shown read-only inside the picker description).
@@ -2471,6 +2524,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 **Goal:** Lazy-loaded schema sidebar (DB → schema → table → column).
 
 **Files:**
+
 - Create: `src-tauri/src/commands/schema.rs`
 - Modify: `src-tauri/src/commands/mod.rs`
 - Modify: `src-tauri/src/lib.rs`
@@ -2698,10 +2752,14 @@ export const useSchema = create<SchemaState>((set, get) => ({
 
   async loadDatabases(connId) {
     if (get().databases[connId]?.state === "ready") return;
-    set((s) => ({ databases: { ...s.databases, [connId]: { state: "loading" } } }));
+    set((s) => ({
+      databases: { ...s.databases, [connId]: { state: "loading" } },
+    }));
     try {
       const data = await listDatabases(connId);
-      set((s) => ({ databases: { ...s.databases, [connId]: { state: "ready", data } } }));
+      set((s) => ({
+        databases: { ...s.databases, [connId]: { state: "ready", data } },
+      }));
     } catch (e) {
       set((s) => ({
         databases: {
@@ -2717,7 +2775,9 @@ export const useSchema = create<SchemaState>((set, get) => ({
     set((s) => ({ schemas: { ...s.schemas, [connId]: { state: "loading" } } }));
     try {
       const data = await listSchemas(connId);
-      set((s) => ({ schemas: { ...s.schemas, [connId]: { state: "ready", data } } }));
+      set((s) => ({
+        schemas: { ...s.schemas, [connId]: { state: "ready", data } },
+      }));
     } catch (e) {
       set((s) => ({
         schemas: {
@@ -2734,10 +2794,15 @@ export const useSchema = create<SchemaState>((set, get) => ({
     set((s) => ({ tables: { ...s.tables, [key]: { state: "loading" } } }));
     try {
       const data = await listTables(connId, schema);
-      set((s) => ({ tables: { ...s.tables, [key]: { state: "ready", data } } }));
+      set((s) => ({
+        tables: { ...s.tables, [key]: { state: "ready", data } },
+      }));
     } catch (e) {
       set((s) => ({
-        tables: { ...s.tables, [key]: { state: "error", error: (e as Error).message } },
+        tables: {
+          ...s.tables,
+          [key]: { state: "error", error: (e as Error).message },
+        },
       }));
     }
   },
@@ -2748,10 +2813,15 @@ export const useSchema = create<SchemaState>((set, get) => ({
     set((s) => ({ columns: { ...s.columns, [key]: { state: "loading" } } }));
     try {
       const data = await listColumns(connId, schema, table);
-      set((s) => ({ columns: { ...s.columns, [key]: { state: "ready", data } } }));
+      set((s) => ({
+        columns: { ...s.columns, [key]: { state: "ready", data } },
+      }));
     } catch (e) {
       set((s) => ({
-        columns: { ...s.columns, [key]: { state: "error", error: (e as Error).message } },
+        columns: {
+          ...s.columns,
+          [key]: { state: "error", error: (e as Error).message },
+        },
       }));
     }
   },
@@ -2764,8 +2834,12 @@ export const useSchema = create<SchemaState>((set, get) => ({
       const columns = { ...s.columns };
       delete databases[connId];
       delete schemas[connId];
-      Object.keys(tables).forEach((k) => k.startsWith(`${connId}:`) && delete tables[k]);
-      Object.keys(columns).forEach((k) => k.startsWith(`${connId}:`) && delete columns[k]);
+      Object.keys(tables).forEach(
+        (k) => k.startsWith(`${connId}:`) && delete tables[k],
+      );
+      Object.keys(columns).forEach(
+        (k) => k.startsWith(`${connId}:`) && delete columns[k],
+      );
       return { databases, schemas, tables, columns };
     });
   },
@@ -2789,7 +2863,13 @@ interface Props {
   indent?: number;
 }
 
-export function SchemaNode({ label, children, onExpand, initiallyOpen, indent = 0 }: Props) {
+export function SchemaNode({
+  label,
+  children,
+  onExpand,
+  initiallyOpen,
+  indent = 0,
+}: Props) {
   const [open, setOpen] = useState(!!initiallyOpen);
 
   useEffect(() => {
@@ -2806,7 +2886,11 @@ export function SchemaNode({ label, children, onExpand, initiallyOpen, indent = 
         style={{ paddingLeft: 4 + indent * 12 }}
         onClick={() => setOpen((o) => !o)}
       >
-        {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+        {open ? (
+          <ChevronDown className="size-3.5" />
+        ) : (
+          <ChevronRight className="size-3.5" />
+        )}
         <span>{label}</span>
       </button>
       {open && <div>{children}</div>}
@@ -2850,7 +2934,13 @@ export function SchemaTree() {
   );
 }
 
-function ConnectionBranch({ connectionId, name }: { connectionId: string; name: string }) {
+function ConnectionBranch({
+  connectionId,
+  name,
+}: {
+  connectionId: string;
+  name: string;
+}) {
   const schemas = useSchema((s) => s.schemas[connectionId]);
   const load = useSchema((s) => s.loadSchemas);
 
@@ -2864,7 +2954,12 @@ function ConnectionBranch({ connectionId, name }: { connectionId: string; name: 
       {schemas?.state === "error" && <Hint>{schemas.error}</Hint>}
       {schemas?.state === "ready" &&
         schemas.data!.map((schema) => (
-          <SchemaBranch key={schema} connectionId={connectionId} schema={schema} indent={1} />
+          <SchemaBranch
+            key={schema}
+            connectionId={connectionId}
+            schema={schema}
+            indent={1}
+          />
         ))}
     </SchemaNode>
   );
@@ -2890,7 +2985,9 @@ function SchemaBranch({
   return (
     <SchemaNode label={schema} indent={indent} onExpand={onExpand}>
       {tables?.state === "loading" && <Hint indent={indent + 1}>loading…</Hint>}
-      {tables?.state === "error" && <Hint indent={indent + 1}>{tables.error}</Hint>}
+      {tables?.state === "error" && (
+        <Hint indent={indent + 1}>{tables.error}</Hint>
+      )}
       {tables?.state === "ready" &&
         tables.data!.map((table) => (
           <TableBranch
@@ -2939,7 +3036,9 @@ function TableBranch({
             <span>
               {c.data_type}
               {!c.is_nullable && " ·"}
-              {!c.is_nullable && <span className="text-foreground"> NOT NULL</span>}
+              {!c.is_nullable && (
+                <span className="text-foreground"> NOT NULL</span>
+              )}
             </span>
           </div>
         ))}
@@ -2947,7 +3046,13 @@ function TableBranch({
   );
 }
 
-function Hint({ children, indent = 0 }: { children: React.ReactNode; indent?: number }) {
+function Hint({
+  children,
+  indent = 0,
+}: {
+  children: React.ReactNode;
+  indent?: number;
+}) {
   return (
     <p
       className="text-muted-foreground text-xs italic"
@@ -2979,7 +3084,7 @@ import { SchemaTree } from "@/features/schema/SchemaTree";
     <ConnectionList />
   </div>
   <SchemaTree />
-</aside>
+</aside>;
 ```
 
 - [ ] **Step 8: Quality gates + manual smoke**
@@ -3005,6 +3110,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 **Goal:** Multi-tab SQL editor wired to the active connection, with `Cmd+Enter` to run, `Cmd+T` new tab, `Cmd+W` close tab.
 
 **Files:**
+
 - Create: `src/store/tabs.ts`
 - Create: `src/features/editor/EditorPane.tsx`
 - Create: `src/features/editor/EditorTabs.tsx`
@@ -3091,7 +3197,8 @@ export const useTabs = create<TabsState>((set) => ({
         };
         return { tabs: [fresh], activeId: fresh.id };
       }
-      const activeId = s.activeId === id ? tabs[tabs.length - 1].id : s.activeId;
+      const activeId =
+        s.activeId === id ? tabs[tabs.length - 1].id : s.activeId;
       return { tabs, activeId };
     });
   },
@@ -3107,13 +3214,17 @@ export const useTabs = create<TabsState>((set) => ({
   },
 
   bindConnection(id, connectionId) {
-    set((s) => ({ tabs: s.tabs.map((t) => (t.id === id ? { ...t, connectionId } : t)) }));
+    set((s) => ({
+      tabs: s.tabs.map((t) => (t.id === id ? { ...t, connectionId } : t)),
+    }));
   },
 
   setResult(id, result) {
     set((s) => ({
       tabs: s.tabs.map((t) =>
-        t.id === id ? { ...t, lastResult: result, lastError: undefined, busy: false } : t,
+        t.id === id
+          ? { ...t, lastResult: result, lastError: undefined, busy: false }
+          : t,
       ),
     }));
   },
@@ -3121,13 +3232,17 @@ export const useTabs = create<TabsState>((set) => ({
   setError(id, message) {
     set((s) => ({
       tabs: s.tabs.map((t) =>
-        t.id === id ? { ...t, lastError: message, lastResult: undefined, busy: false } : t,
+        t.id === id
+          ? { ...t, lastError: message, lastResult: undefined, busy: false }
+          : t,
       ),
     }));
   },
 
   setBusy(id, busy) {
-    set((s) => ({ tabs: s.tabs.map((t) => (t.id === id ? { ...t, busy } : t)) }));
+    set((s) => ({
+      tabs: s.tabs.map((t) => (t.id === id ? { ...t, busy } : t)),
+    }));
   },
 }));
 ```
@@ -3139,11 +3254,15 @@ export const useTabs = create<TabsState>((set) => ({
 export type Modifier = "meta" | "ctrl";
 
 export function platformModifier(): Modifier {
-  if (typeof navigator !== "undefined" && /Mac/i.test(navigator.platform)) return "meta";
+  if (typeof navigator !== "undefined" && /Mac/i.test(navigator.platform))
+    return "meta";
   return "ctrl";
 }
 
-export function isModifier(e: KeyboardEvent | React.KeyboardEvent, mod: Modifier) {
+export function isModifier(
+  e: KeyboardEvent | React.KeyboardEvent,
+  mod: Modifier,
+) {
   return mod === "meta" ? e.metaKey : e.ctrlKey;
 }
 ```
@@ -3196,7 +3315,14 @@ export function EditorPane() {
       setError(activeTab.id, msg);
       toast.error(msg);
     }
-  }, [activeTab.id, activeTab.sql, connectionForTab, setBusy, setError, setResult]);
+  }, [
+    activeTab.id,
+    activeTab.sql,
+    connectionForTab,
+    setBusy,
+    setError,
+    setResult,
+  ]);
 
   useEffect(() => {
     const mod = platformModifier();
@@ -3223,7 +3349,9 @@ export function EditorPane() {
       <div className="flex flex-1 flex-col">
         <div className="border-border flex items-center justify-between border-b px-3 py-1.5">
           <span className="text-muted-foreground text-xs">
-            {connectionForTab ? `Running on: ${connectionForTab}` : "No connection"}
+            {connectionForTab
+              ? `Running on: ${connectionForTab}`
+              : "No connection"}
           </span>
           <Button size="sm" onClick={run} disabled={activeTab.busy}>
             <Play /> Run ({platformModifier() === "meta" ? "⌘" : "Ctrl"}+Enter)
@@ -3318,7 +3446,7 @@ import { EditorPane } from "@/features/editor/EditorPane";
 // inside the right column:
 <main className="flex min-h-0 flex-col">
   <EditorPane />
-</main>
+</main>;
 ```
 
 (Make sure the parent is `grid grid-cols-[280px_1fr]` and that `main` is `min-h-0 flex flex-col` so Monaco fills.)
@@ -3331,6 +3459,7 @@ pnpm tauri dev
 ```
 
 Verify:
+
 - Tabs render. New tab button works.
 - Cmd+Enter executes query (the result appears as raw JSON until Task 10 — adapt: just check the network of `last_result` via React DevTools or wait for Task 10).
 - Cmd+T opens a new tab, Cmd+W closes it.
@@ -3351,8 +3480,9 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 **Goal:** Render `lastResult` of the active tab in a virtualized grid with sortable columns and proper cell formatting; hook the editor "Run" path so users see structured output.
 
 **Files:**
+
 - Create: `src/lib/sql.ts`
-- Create: `src/store/results.ts` *(unused — results live on the tab; skip if redundant)*
+- Create: `src/store/results.ts` _(unused — results live on the tab; skip if redundant)_
 - Create: `src/features/results/cells.tsx`
 - Create: `src/features/results/ResultsHeader.tsx`
 - Create: `src/features/results/ResultsGrid.tsx`
@@ -3385,7 +3515,7 @@ export function Cell({ value, type }: { value: unknown; type: string }) {
   if (value === null || value === undefined) {
     return <span className="text-muted-foreground italic">NULL</span>;
   }
-  if (type === "json" || type === "jsonb" || (typeof value === "object")) {
+  if (type === "json" || type === "jsonb" || typeof value === "object") {
     return <JsonCell value={value} />;
   }
   if (typeof value === "boolean") {
@@ -3404,7 +3534,13 @@ function JsonCell({ value }: { value: unknown }) {
       className="text-left font-mono"
       title={open ? "click to collapse" : "click to expand"}
     >
-      {open ? <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(value, null, 2)}</pre> : truncated}
+      {open ? (
+        <pre className="text-xs whitespace-pre-wrap">
+          {JSON.stringify(value, null, 2)}
+        </pre>
+      ) : (
+        truncated
+      )}
     </button>
   );
 }
@@ -3435,7 +3571,9 @@ export function ResultsHeader({ result, error, busy }: Props) {
         </>
       )}
       {!busy && !result && !error && (
-        <span className="text-muted-foreground">No result yet — Cmd+Enter to run.</span>
+        <span className="text-muted-foreground">
+          No result yet — Cmd+Enter to run.
+        </span>
       )}
     </div>
   );
@@ -3479,8 +3617,12 @@ export function ResultsGrid({ result }: { result: QueryResult }) {
         accessorKey: c.name,
         header: () => (
           <div className="flex flex-col leading-tight">
-            <span className="text-foreground text-xs font-medium">{c.name}</span>
-            <span className="text-muted-foreground text-[10px]">{c.type_name}</span>
+            <span className="text-foreground text-xs font-medium">
+              {c.name}
+            </span>
+            <span className="text-muted-foreground text-[10px]">
+              {c.type_name}
+            </span>
           </div>
         ),
         cell: (info) => <Cell value={info.getValue()} type={c.type_name} />,
@@ -3614,6 +3756,7 @@ pnpm tauri dev
 ```
 
 Expected:
+
 - Result grid auto-applies `LIMIT 1000`.
 - Headers show `name (text)`, `payload (jsonb)`, etc.
 - `null` cells render in italics.
@@ -3637,6 +3780,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 **Goal:** Surface the auto-LIMIT toggle in a settings store (persisted in localStorage), emit `connection:lost` from Rust when the SSH child exits, and wrap up with a manual verification checklist that exercises the Week 2 acceptance criteria.
 
 **Files:**
+
 - Create: `src/store/settings.ts`
 - Modify: `src/features/editor/EditorPane.tsx`
 - Modify: `src/App.tsx` (small "Auto LIMIT" toggle in toolbar)
@@ -3679,7 +3823,8 @@ Replace `AUTO_LIMIT_DEFAULT` with:
 import { useSettings } from "@/store/settings";
 
 const autoLimit = useSettings((s) => s.autoLimit);
-const sqlToRun = autoLimit > 0 ? withAutoLimit(activeTab.sql, autoLimit) : activeTab.sql;
+const sqlToRun =
+  autoLimit > 0 ? withAutoLimit(activeTab.sql, autoLimit) : activeTab.sql;
 ```
 
 - [ ] **Step 3: Toolbar toggle in `App.tsx`**
@@ -3699,11 +3844,15 @@ import { useSettings } from "@/store/settings";
       step={100}
       className="border-input w-24 rounded border px-2 py-1"
       value={useSettings((s) => s.autoLimit)}
-      onChange={(e) => useSettings.getState().setAutoLimit(Number(e.target.value) || 0)}
+      onChange={(e) =>
+        useSettings.getState().setAutoLimit(Number(e.target.value) || 0)
+      }
     />
   </label>
-  <p className="text-muted-foreground mt-1">0 = off. Skipped if SQL has its own LIMIT.</p>
-</div>
+  <p className="text-muted-foreground mt-1">
+    0 = off. Skipped if SQL has its own LIMIT.
+  </p>
+</div>;
 ```
 
 - [ ] **Step 4: Rust — emit `connection:lost` on tunnel exit**
@@ -3792,9 +3941,7 @@ function ensureLostListener() {
   listen<string>("connection:lost", (e) => {
     const id = e.payload;
     useConnections.getState().refresh();
-    import("sonner").then(({ toast }) =>
-      toast.error(`Lost connection ${id}`),
-    );
+    import("sonner").then(({ toast }) => toast.error(`Lost connection ${id}`));
   });
 }
 
@@ -3903,21 +4050,21 @@ git tag week-2-complete
 
 ## Self-review (post-write)
 
-| Spec section | Implemented in |
-|---|---|
-| §3 Architecture | T1–T11 (registry struct: T3) |
-| §4 Libraries | T1 (anyhow/thiserror/keyring), T2 (rusqlite), T3 (sqlx) |
-| §5 Connection model + SQLite schema | T2 |
-| §6 SSH integration (config + tunnel) | T5 + T6 + T11 (lost watcher) |
-| §7 Connection-add UX | T4 (Direct TCP) + T7 (SSH tabs) |
-| §8 Schema tree | T8 |
-| §9 SQL editor | T9 |
-| §10 Result grid + auto-LIMIT | T10 + T11 (toggle) |
-| §11 Data flow query | T3 (`execute_query`) + T9/T10 (frontend) |
-| §12 Errors | T1 (`TuskError`) + frontend wrapper (T4) |
-| §13 Testing | T1/T2/T5/T6 unit + T3 integration |
-| §14 Folder structure | T2/T3/T5/T6/T8/T9/T10 |
-| §15 Slice order | Tasks ordered to match |
+| Spec section                         | Implemented in                                          |
+| ------------------------------------ | ------------------------------------------------------- |
+| §3 Architecture                      | T1–T11 (registry struct: T3)                            |
+| §4 Libraries                         | T1 (anyhow/thiserror/keyring), T2 (rusqlite), T3 (sqlx) |
+| §5 Connection model + SQLite schema  | T2                                                      |
+| §6 SSH integration (config + tunnel) | T5 + T6 + T11 (lost watcher)                            |
+| §7 Connection-add UX                 | T4 (Direct TCP) + T7 (SSH tabs)                         |
+| §8 Schema tree                       | T8                                                      |
+| §9 SQL editor                        | T9                                                      |
+| §10 Result grid + auto-LIMIT         | T10 + T11 (toggle)                                      |
+| §11 Data flow query                  | T3 (`execute_query`) + T9/T10 (frontend)                |
+| §12 Errors                           | T1 (`TuskError`) + frontend wrapper (T4)                |
+| §13 Testing                          | T1/T2/T5/T6 unit + T3 integration                       |
+| §14 Folder structure                 | T2/T3/T5/T6/T8/T9/T10                                   |
+| §15 Slice order                      | Tasks ordered to match                                  |
 
 No `TBD`/`TODO` placeholders. Type names consistent: `ConnectionRecord`,
 `NewConnection`, `ConnectionListItem`, `QueryResult`, `SshHost`,
@@ -3925,6 +4072,7 @@ No `TBD`/`TODO` placeholders. Type names consistent: `ConnectionRecord`,
 across Rust + TS.
 
 Known limitations carried forward:
+
 - Connection-lost watcher uses Unix `kill(pid, 0)`; Windows path falls back to
   no-op (documented in T11 inline). Address in v1.5.
 - `execute_query` cell decoder is best-effort across PG types; rare types
