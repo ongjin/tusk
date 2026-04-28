@@ -8,14 +8,17 @@ import { pkValuesOf, usePendingChanges } from "@/store/pendingChanges";
 import { cellAsString } from "./cellSerde";
 import { BigintWidget } from "./widgets/Bigint";
 import { BoolWidget } from "./widgets/Bool";
+import { ByteaWidget } from "./widgets/Bytea";
 import { DateWidget } from "./widgets/Date";
 import { IntWidget } from "./widgets/Int";
+import { JsonWidget } from "./widgets/Json";
 import { NumericWidget } from "./widgets/Numeric";
 import { TextWidget } from "./widgets/Text";
 import { TimeWidget } from "./widgets/Time";
 import { TimestampWidget } from "./widgets/Timestamp";
 import type { WidgetProps } from "./widgets/types";
 import { UuidWidget } from "./widgets/Uuid";
+import { VectorWidget } from "./widgets/Vector";
 
 interface Props {
   value: Cell;
@@ -47,6 +50,13 @@ function renderWidget(typeName: string, props: WidgetProps) {
       return <TimestampWidget {...props} kind="Timestamptz" />;
     case "uuid":
       return <UuidWidget {...props} />;
+    case "json":
+    case "jsonb":
+      return <JsonWidget {...props} />;
+    case "bytea":
+      return <ByteaWidget {...props} />;
+    case "vector":
+      return <VectorWidget {...props} />;
     case "text":
     case "varchar":
     case "bpchar":
@@ -74,7 +84,9 @@ export function EditableCell({ value, columnIndex, row, meta }: Props) {
 
   const [editing, setEditing] = useState(false);
 
-  if (!meta.editable) {
+  const colTypeName = meta.columnTypes[columnIndex]?.typeName;
+  const isReadonlyType = colTypeName === "vector" || colTypeName === "unknown";
+  if (!meta.editable || isReadonlyType) {
     return <>{renderCell(value)}</>;
   }
 
