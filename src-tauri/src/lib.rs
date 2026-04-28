@@ -56,6 +56,8 @@ pub fn run() {
             commands::schema_index::sync_schema_index,
             commands::schema_index::schema_index_clear,
             commands::schema_index::schema_index_count,
+            commands::schema_index::schema_top_k,
+            commands::history::list_recent_successful,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

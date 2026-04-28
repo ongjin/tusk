@@ -25,3 +25,13 @@ pub async fn list_history_statements(
 ) -> TuskResult<Vec<HistoryStatement>> {
     store.list_history_statements(&entry_id)
 }
+
+#[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
+pub fn list_recent_successful(
+    store: State<'_, StateStore>,
+    connection_id: String,
+    limit: i64,
+) -> TuskResult<Vec<HistoryEntry>> {
+    store.list_recent_successful(&connection_id, limit)
+}

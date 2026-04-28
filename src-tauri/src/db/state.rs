@@ -417,6 +417,32 @@ impl StateStore {
         Ok(())
     }
 
+    pub fn list_recent_successful(
+        &self,
+        conn_id: &str,
+        limit: i64,
+    ) -> TuskResult<Vec<HistoryEntry>> {
+        let db = self.db.lock().expect("state lock poisoned");
+        let mut stmt = db
+            .prepare(
+                "SELECT id, conn_id, source, tx_id, sql_preview, sql_full, started_at,
+                        duration_ms, row_count, status, error_message, statement_count
+                 FROM history_entry
+                 WHERE conn_id = ? AND status = 'ok'
+                 ORDER BY started_at DESC
+                 LIMIT ?",
+            )
+            .map_err(|e| TuskError::History(e.to_string()))?;
+        let rows = stmt
+            .query_map(rusqlite::params![conn_id, limit], row_to_history_entry)
+            .map_err(|e| TuskError::History(e.to_string()))?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r.map_err(|e| TuskError::History(e.to_string()))?);
+        }
+        Ok(out)
+    }
+
     pub fn list_history(
         &self,
         conn_id: Option<&str>,
@@ -424,23 +450,6 @@ impl StateStore {
         limit: i64,
     ) -> TuskResult<Vec<HistoryEntry>> {
         let db = self.db.lock().expect("state lock poisoned");
-
-        let map_row = |row: &rusqlite::Row<'_>| -> rusqlite::Result<HistoryEntry> {
-            Ok(HistoryEntry {
-                id: row.get(0)?,
-                conn_id: row.get(1)?,
-                source: row.get(2)?,
-                tx_id: row.get(3)?,
-                sql_preview: row.get(4)?,
-                sql_full: row.get(5)?,
-                started_at: row.get(6)?,
-                duration_ms: row.get(7)?,
-                row_count: row.get(8)?,
-                status: row.get(9)?,
-                error_message: row.get(10)?,
-                statement_count: row.get(11)?,
-            })
-        };
 
         let mut out: Vec<HistoryEntry> = Vec::new();
         match (conn_id, query) {
@@ -457,7 +466,7 @@ impl StateStore {
                     )
                     .map_err(|e| TuskError::History(e.to_string()))?;
                 let rows = stmt
-                    .query_map(params![cid, pattern, limit], map_row)
+                    .query_map(params![cid, pattern, limit], row_to_history_entry)
                     .map_err(|e| TuskError::History(e.to_string()))?;
                 for r in rows {
                     out.push(r.map_err(|e| TuskError::History(e.to_string()))?);
@@ -475,7 +484,7 @@ impl StateStore {
                     )
                     .map_err(|e| TuskError::History(e.to_string()))?;
                 let rows = stmt
-                    .query_map(params![cid, limit], map_row)
+                    .query_map(params![cid, limit], row_to_history_entry)
                     .map_err(|e| TuskError::History(e.to_string()))?;
                 for r in rows {
                     out.push(r.map_err(|e| TuskError::History(e.to_string()))?);
@@ -494,7 +503,7 @@ impl StateStore {
                     )
                     .map_err(|e| TuskError::History(e.to_string()))?;
                 let rows = stmt
-                    .query_map(params![pattern, limit], map_row)
+                    .query_map(params![pattern, limit], row_to_history_entry)
                     .map_err(|e| TuskError::History(e.to_string()))?;
                 for r in rows {
                     out.push(r.map_err(|e| TuskError::History(e.to_string()))?);
@@ -511,7 +520,7 @@ impl StateStore {
                     )
                     .map_err(|e| TuskError::History(e.to_string()))?;
                 let rows = stmt
-                    .query_map(params![limit], map_row)
+                    .query_map(params![limit], row_to_history_entry)
                     .map_err(|e| TuskError::History(e.to_string()))?;
                 for r in rows {
                     out.push(r.map_err(|e| TuskError::History(e.to_string()))?);
@@ -568,6 +577,23 @@ pub struct HistoryEntry {
     pub status: String,
     pub error_message: Option<String>,
     pub statement_count: i64,
+}
+
+fn row_to_history_entry(row: &rusqlite::Row<'_>) -> rusqlite::Result<HistoryEntry> {
+    Ok(HistoryEntry {
+        id: row.get(0)?,
+        conn_id: row.get(1)?,
+        source: row.get(2)?,
+        tx_id: row.get(3)?,
+        sql_preview: row.get(4)?,
+        sql_full: row.get(5)?,
+        started_at: row.get(6)?,
+        duration_ms: row.get(7)?,
+        row_count: row.get(8)?,
+        status: row.get(9)?,
+        error_message: row.get(10)?,
+        statement_count: row.get(11)?,
+    })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
