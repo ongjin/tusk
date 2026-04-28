@@ -240,6 +240,7 @@ export type DestructiveKind =
   | "drop-index"
   | "drop-view"
   | "drop-function"
+  | "drop-other"
   | "truncate"
   | "delete-no-where"
   | "update-no-where"

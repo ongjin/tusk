@@ -30,6 +30,7 @@ pub enum DestructiveKind {
     DropIndex,
     DropView,
     DropFunction,
+    DropOther,
     Truncate,
     DeleteNoWhere,
     UpdateNoWhere,
@@ -76,7 +77,8 @@ fn classify_one(idx: usize, stmt: &Statement) -> Option<DestructiveFinding> {
                 ObjectType::View => DestructiveKind::DropView,
                 ObjectType::Schema => DestructiveKind::DropSchema,
                 ObjectType::Database => DestructiveKind::DropDatabase,
-                _ => DestructiveKind::DropTable,
+                // Fail-safe: unknown DROP target still gates the run.
+                _ => DestructiveKind::DropOther,
             };
             Some(DestructiveFinding {
                 kind,
@@ -212,18 +214,96 @@ fn object_to_string(name: &sqlparser::ast::ObjectName) -> String {
         .join(".")
 }
 
+/// Returns `sql` with line comments, block comments, and single-quoted
+/// string literals replaced with whitespace of the same length. Used as a
+/// pre-filter for raw-token checks so the substring scan ignores them.
+fn strip_noise(sql: &str) -> String {
+    let bytes = sql.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        // -- line comment
+        if i + 1 < bytes.len() && bytes[i] == b'-' && bytes[i + 1] == b'-' {
+            while i < bytes.len() && bytes[i] != b'\n' {
+                out.push(b' ');
+                i += 1;
+            }
+            continue;
+        }
+        // /* block comment */ (no nesting; PG technically allows nesting,
+        // but rare in destructive contexts).
+        if i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'*' {
+            out.push(b' ');
+            out.push(b' ');
+            i += 2;
+            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                out.push(b' ');
+                i += 1;
+            }
+            if i + 1 < bytes.len() {
+                out.push(b' ');
+                out.push(b' ');
+                i += 2;
+            }
+            continue;
+        }
+        // 'string literal' with '' escape.
+        if bytes[i] == b'\'' {
+            out.push(b' ');
+            i += 1;
+            while i < bytes.len() {
+                if bytes[i] == b'\'' {
+                    if i + 1 < bytes.len() && bytes[i + 1] == b'\'' {
+                        out.push(b' ');
+                        out.push(b' ');
+                        i += 2;
+                        continue;
+                    }
+                    out.push(b' ');
+                    i += 1;
+                    break;
+                }
+                // Preserve bytes inside the string as spaces.
+                out.push(b' ');
+                i += 1;
+            }
+            continue;
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8(out).unwrap_or_else(|_| sql.to_string())
+}
+
 /// VACUUM FULL is awkward to discriminate from sqlparser AST — supplemented
 /// with a raw-token check.
 pub fn classify_vacuum_full(sql: &str) -> Vec<DestructiveFinding> {
+    let stripped = strip_noise(sql);
+    let upper = stripped.to_uppercase();
     let mut out = Vec::new();
-    let upper = sql.to_uppercase();
-    if upper.contains("VACUUM FULL") {
-        out.push(DestructiveFinding {
-            kind: DestructiveKind::VacuumFull,
-            statement_index: 0,
-            message: "VACUUM FULL takes an exclusive lock and rewrites the table".into(),
-            affected_object: None,
-        });
+    // Match VACUUM followed by whitespace then FULL — robust to multi-space.
+    let needle = "VACUUM";
+    let mut i = 0;
+    while let Some(pos) = upper[i..].find(needle) {
+        let start = i + pos;
+        let after = &upper[start + needle.len()..];
+        let trimmed = after.trim_start();
+        if let Some(after_full) = trimmed.strip_prefix("FULL") {
+            // Boundary check on the FULL side: char after FULL must not be
+            // alphanumeric/underscore.
+            let next = after_full.chars().next();
+            let boundary_ok = next.is_none_or(|c| !c.is_ascii_alphanumeric() && c != '_');
+            if boundary_ok {
+                out.push(DestructiveFinding {
+                    kind: DestructiveKind::VacuumFull,
+                    statement_index: 0,
+                    message: "VACUUM FULL takes an exclusive lock and rewrites the table".into(),
+                    affected_object: None,
+                });
+                break;
+            }
+        }
+        i = start + needle.len();
     }
     out
 }
@@ -369,5 +449,41 @@ mod tests {
         assert_eq!(r[0].statement_index, 0);
         assert_eq!(r[1].statement_index, 1);
         assert_eq!(r[2].statement_index, 2);
+    }
+
+    #[test]
+    fn drop_database() {
+        assert_eq!(
+            kinds("DROP DATABASE app"),
+            vec![DestructiveKind::DropDatabase]
+        );
+    }
+
+    #[test]
+    fn drop_function() {
+        assert_eq!(
+            kinds("DROP FUNCTION public.foo(integer)"),
+            vec![DestructiveKind::DropFunction]
+        );
+    }
+
+    #[test]
+    fn drop_sequence_is_drop_other() {
+        assert_eq!(kinds("DROP SEQUENCE s"), vec![DestructiveKind::DropOther]);
+    }
+
+    #[test]
+    fn vacuum_full_in_comment_is_safe() {
+        assert!(kinds("-- VACUUM FULL\nSELECT 1").is_empty());
+    }
+
+    #[test]
+    fn vacuum_full_in_string_is_safe() {
+        assert!(kinds("SELECT 'VACUUM FULL is fast'").is_empty());
+    }
+
+    #[test]
+    fn vacuum_full_in_block_comment_is_safe() {
+        assert!(kinds("/* VACUUM FULL */ SELECT 1").is_empty());
     }
 }
