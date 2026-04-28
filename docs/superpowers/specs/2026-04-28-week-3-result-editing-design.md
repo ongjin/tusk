@@ -112,14 +112,14 @@ pub struct StickyTx {
 
 ## 4. Libraries (Week 3 추가)
 
-| 영역             | 라이브러리                            | 사유                                                         |
-| ---------------- | ------------------------------------- | ------------------------------------------------------------ |
-| SQL AST          | `sqlparser 0.50+` (postgres dialect)  | PK 감지 시 단일 테이블 SELECT 인식. 파싱 실패 = read-only로 fallback. |
-| Numeric          | `bigdecimal` (sqlx `bigdecimal` feature) | numeric 정밀도 보존. 응답은 string으로 직렬화. |
-| Date/Time        | 기존 `chrono` 유지 + sqlx `PgInterval` | timestamp/date/time은 chrono. interval은 sqlx `PgInterval`을 직접 ISO 8601 duration 문자열로 직렬화. |
-| UUID             | 기존 `uuid` (sqlx feature)            |                                                              |
-| Network          | `ipnetwork` (sqlx `ipnetwork` feature) | inet/cidr typed 디코드. 응답은 텍스트 표현. |
-| Frontend SQL hl  | Monaco 기존 사용 (위젯 미니 인스턴스) |                                                              |
+| 영역            | 라이브러리                               | 사유                                                                                                 |
+| --------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| SQL AST         | `sqlparser 0.50+` (postgres dialect)     | PK 감지 시 단일 테이블 SELECT 인식. 파싱 실패 = read-only로 fallback.                                |
+| Numeric         | `bigdecimal` (sqlx `bigdecimal` feature) | numeric 정밀도 보존. 응답은 string으로 직렬화.                                                       |
+| Date/Time       | 기존 `chrono` 유지 + sqlx `PgInterval`   | timestamp/date/time은 chrono. interval은 sqlx `PgInterval`을 직접 ISO 8601 duration 문자열로 직렬화. |
+| UUID            | 기존 `uuid` (sqlx feature)               |                                                                                                      |
+| Network         | `ipnetwork` (sqlx `ipnetwork` feature)   | inet/cidr typed 디코드. 응답은 텍스트 표현.                                                          |
+| Frontend SQL hl | Monaco 기존 사용 (위젯 미니 인스턴스)    |                                                                                                      |
 
 ## 5. Data model
 
@@ -128,42 +128,69 @@ pub struct StickyTx {
 ```ts
 // 새 cell 모델 — Week 2의 raw JsonValue를 대체
 export type Cell =
-  | { kind: 'null' }
-  | { kind: 'bool'; value: boolean }
-  | { kind: 'int'; value: number }                  // int2/int4
-  | { kind: 'bigint'; value: string }               // int8 — JS number 정밀도 회피
-  | { kind: 'float'; value: number }                // float4/float8
-  | { kind: 'numeric'; value: string }              // 정밀도 보존
-  | { kind: 'text'; value: string }                 // text/varchar/bpchar
-  | { kind: 'bytea'; b64: string }
-  | { kind: 'uuid'; value: string }
-  | { kind: 'inet'; value: string }                 // inet/cidr
-  | { kind: 'date'; value: string }                 // YYYY-MM-DD
-  | { kind: 'time'; value: string }
-  | { kind: 'timetz'; value: string }
-  | { kind: 'timestamp'; value: string }            // ISO no TZ
-  | { kind: 'timestamptz'; value: string }          // ISO with offset
-  | { kind: 'interval'; iso: string }               // ISO 8601 duration
-  | { kind: 'json'; value: unknown }                // jsonb/json
-  | { kind: 'array'; elem: PgTypeName; values: Cell[] }
-  | { kind: 'enum'; typeName: string; value: string }
-  | { kind: 'vector'; dim: number; values: number[] }
-  | { kind: 'unknown'; oid: number; text: string };
+  | { kind: "null" }
+  | { kind: "bool"; value: boolean }
+  | { kind: "int"; value: number } // int2/int4
+  | { kind: "bigint"; value: string } // int8 — JS number 정밀도 회피
+  | { kind: "float"; value: number } // float4/float8
+  | { kind: "numeric"; value: string } // 정밀도 보존
+  | { kind: "text"; value: string } // text/varchar/bpchar
+  | { kind: "bytea"; b64: string }
+  | { kind: "uuid"; value: string }
+  | { kind: "inet"; value: string } // inet/cidr
+  | { kind: "date"; value: string } // YYYY-MM-DD
+  | { kind: "time"; value: string }
+  | { kind: "timetz"; value: string }
+  | { kind: "timestamp"; value: string } // ISO no TZ
+  | { kind: "timestamptz"; value: string } // ISO with offset
+  | { kind: "interval"; iso: string } // ISO 8601 duration
+  | { kind: "json"; value: unknown } // jsonb/json
+  | { kind: "array"; elem: PgTypeName; values: Cell[] }
+  | { kind: "enum"; typeName: string; value: string }
+  | { kind: "vector"; dim: number; values: number[] }
+  | { kind: "unknown"; oid: number; text: string };
 
 export type PgTypeName =
-  | 'bool' | 'int2' | 'int4' | 'int8' | 'float4' | 'float8' | 'numeric'
-  | 'text' | 'varchar' | 'bpchar' | 'bytea' | 'uuid'
-  | 'inet' | 'cidr' | 'date' | 'time' | 'timetz' | 'timestamp' | 'timestamptz'
-  | 'interval' | 'jsonb' | 'json' | 'enum' | 'vector' | 'unknown';
+  | "bool"
+  | "int2"
+  | "int4"
+  | "int8"
+  | "float4"
+  | "float8"
+  | "numeric"
+  | "text"
+  | "varchar"
+  | "bpchar"
+  | "bytea"
+  | "uuid"
+  | "inet"
+  | "cidr"
+  | "date"
+  | "time"
+  | "timetz"
+  | "timestamp"
+  | "timestamptz"
+  | "interval"
+  | "jsonb"
+  | "json"
+  | "enum"
+  | "vector"
+  | "unknown";
 
 // 결과셋 메타 (sqlparser-rs + pg_meta enrich 결과)
 export interface ResultMeta {
   editable: boolean;
-  reason?: 'no-pk' | 'multi-table' | 'computed' | 'pk-not-in-select'
-         | 'too-large' | 'parser-failed' | 'unknown-type';
+  reason?:
+    | "no-pk"
+    | "multi-table"
+    | "computed"
+    | "pk-not-in-select"
+    | "too-large"
+    | "parser-failed"
+    | "unknown-type";
   table?: { schema: string; name: string };
   pkColumns: string[];
-  pkColumnIndices: number[];                  // 결과 컬럼 인덱스로 매핑
+  pkColumnIndices: number[]; // 결과 컬럼 인덱스로 매핑
   columnTypes: ColumnTypeMeta[];
 }
 
@@ -178,12 +205,12 @@ export interface ColumnTypeMeta {
 
 // 인라인 편집 상태 — Map<rowKey, PendingChange>
 export interface PendingChange {
-  rowKey: string;                            // PK canonical JSON
+  rowKey: string; // PK canonical JSON
   table: { schema: string; name: string };
   pk: { columns: string[]; values: Cell[] };
-  edits: { column: string; original: Cell; next: Cell | { kind: 'null' } }[];
-  op: 'update' | 'insert' | 'delete';
-  capturedRow: Cell[];                       // strict 모드용 (결과 컬럼 순서)
+  edits: { column: string; original: Cell; next: Cell | { kind: "null" } }[];
+  op: "update" | "insert" | "delete";
+  capturedRow: Cell[]; // strict 모드용 (결과 컬럼 순서)
   capturedAt: number;
 }
 
@@ -201,13 +228,13 @@ export interface TxState {
 export interface HistoryEntry {
   id: string;
   connId: string;
-  source: 'editor' | 'inline' | 'palette';
+  source: "editor" | "inline" | "palette";
   txId?: string;
-  sqlPreview: string;                        // 첫 200자
+  sqlPreview: string; // 첫 200자
   startedAt: number;
   durationMs: number;
   rowCount?: number;
-  status: 'ok' | 'error' | 'cancelled' | 'rolled_back';
+  status: "ok" | "error" | "cancelled" | "rolled_back";
   errorMessage?: string;
   statementCount: number;
 }
@@ -219,7 +246,7 @@ export interface HistoryStatement {
   sql: string;
   durationMs: number;
   rowCount?: number;
-  status: 'ok' | 'error';
+  status: "ok" | "error";
   errorMessage?: string;
 }
 ```
@@ -333,6 +360,7 @@ pub async fn enrich_result_meta(
 ```
 
 수행 쿼리 (한 번에 join 또는 별도 호출):
+
 - PK 컬럼 — `pg_index` JOIN `pg_attribute` WHERE `indisprimary`
 - 컬럼 nullable / typoid — `pg_attribute` (이미 sqlx 응답에 OID 있으므로 컬럼명 매칭)
 - enum 값 — 컬럼 typtype='e'면 `pg_enum`
@@ -593,29 +621,31 @@ pub enum TuskError {
 
 ## 10. Risks
 
-| #  | 위험                                                          | 영향                  | 완화 |
-| -- | ------------------------------------------------------------- | --------------------- | ---- |
-| 1  | Decoder 재작성이 Week 2 결과 grid 회귀                          | 신뢰 즉사             | OID-dispatch 슬라이스에 golden test set (PG 16 모든 핵심 타입 round-trip). 미지원 OID는 `Cell::Unknown` fallback (`<unsupported type>` 영구 폐기) |
-| 2  | sqlparser-rs가 PG 방언 일부 못 파싱 (RETURNING/ON CONFLICT 등)  | 멀쩡한 쿼리가 read-only | 파서 실패 = 무조건 `editable:false reason:'parser-failed'`. 보수적. 강화는 v1.5 |
-| 3  | sticky tx 안 long-running 쿼리 → 다른 탭 stuck                  | 멀티탭 멘탈 모델 깨짐 | 탭 헤더 🟡 + 상단바 인디케이터 + Cancel 버튼 항시 노출. tx ON 첫 진입시 1회 안내 |
-| 4  | strict 모드 NULL/float 비교 미묘                                | 같은데 충돌로 잘못 보고 | NULL은 `IS NOT DISTINCT FROM`. float은 strict 비교 제외 + 안내 |
-| 5  | Preview SQL과 실제 실행 SQL 미세 차이                           | 사용자 신뢰 손상       | `pg_literals` PG 16 정합 단위 테스트. Preview 푸터에 "actual execution uses parameterized binds" 명시 |
-| 6  | tx 활성 상태 disconnect / 앱 종료                                | 서버 idle in tx       | drop에서 best-effort ROLLBACK (1s timeout) + 종료 confirm 모달 |
-| 7  | enum/FK 메타 조회 추가 RTT                                      | SELECT 느려짐         | enrich_result_meta 1회만. (connId, schema, table) LRU 60s |
-| 8  | 100k+ row 결과에 편집 활성                                       | UI 복잡 + 메모리 폭발 | 결과 row > 10_000이면 편집 비활성 + "Reduce LIMIT to enable editing" 안내. v1.5에서 페이지 단위 편집 |
-| 9  | Cmd+P 팔레트 큰 히스토리에서 느림                                | 검색 응답 지연         | SQLite LIKE는 10만 entry까지 OK. (conn_id, started_at DESC) 인덱스. Week 7에서 sqlite-vec |
-| 10 | OID dispatch에 누락된 타입                                      | 컬럼 표시 안 됨        | `Cell::Unknown { oid, text }` 항상 fallback (raw bytes utf8 best-effort). 회색 italic + "Edit unavailable" 툴팁 |
-| 11 | 쿼리 취소 race                                                  | 다음 statement 잘못 취소 | cancel_query는 `(pid, startedAt)` 토큰 매칭. mismatch silent ignore |
+| #   | 위험                                                           | 영향                     | 완화                                                                                                                                              |
+| --- | -------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Decoder 재작성이 Week 2 결과 grid 회귀                         | 신뢰 즉사                | OID-dispatch 슬라이스에 golden test set (PG 16 모든 핵심 타입 round-trip). 미지원 OID는 `Cell::Unknown` fallback (`<unsupported type>` 영구 폐기) |
+| 2   | sqlparser-rs가 PG 방언 일부 못 파싱 (RETURNING/ON CONFLICT 등) | 멀쩡한 쿼리가 read-only  | 파서 실패 = 무조건 `editable:false reason:'parser-failed'`. 보수적. 강화는 v1.5                                                                   |
+| 3   | sticky tx 안 long-running 쿼리 → 다른 탭 stuck                 | 멀티탭 멘탈 모델 깨짐    | 탭 헤더 🟡 + 상단바 인디케이터 + Cancel 버튼 항시 노출. tx ON 첫 진입시 1회 안내                                                                  |
+| 4   | strict 모드 NULL/float 비교 미묘                               | 같은데 충돌로 잘못 보고  | NULL은 `IS NOT DISTINCT FROM`. float은 strict 비교 제외 + 안내                                                                                    |
+| 5   | Preview SQL과 실제 실행 SQL 미세 차이                          | 사용자 신뢰 손상         | `pg_literals` PG 16 정합 단위 테스트. Preview 푸터에 "actual execution uses parameterized binds" 명시                                             |
+| 6   | tx 활성 상태 disconnect / 앱 종료                              | 서버 idle in tx          | drop에서 best-effort ROLLBACK (1s timeout) + 종료 confirm 모달                                                                                    |
+| 7   | enum/FK 메타 조회 추가 RTT                                     | SELECT 느려짐            | enrich_result_meta 1회만. (connId, schema, table) LRU 60s                                                                                         |
+| 8   | 100k+ row 결과에 편집 활성                                     | UI 복잡 + 메모리 폭발    | 결과 row > 10_000이면 편집 비활성 + "Reduce LIMIT to enable editing" 안내. v1.5에서 페이지 단위 편집                                              |
+| 9   | Cmd+P 팔레트 큰 히스토리에서 느림                              | 검색 응답 지연           | SQLite LIKE는 10만 entry까지 OK. (conn_id, started_at DESC) 인덱스. Week 7에서 sqlite-vec                                                         |
+| 10  | OID dispatch에 누락된 타입                                     | 컬럼 표시 안 됨          | `Cell::Unknown { oid, text }` 항상 fallback (raw bytes utf8 best-effort). 회색 italic + "Edit unavailable" 툴팁                                   |
+| 11  | 쿼리 취소 race                                                 | 다음 statement 잘못 취소 | cancel_query는 `(pid, startedAt)` 토큰 매칭. mismatch silent ignore                                                                               |
 
 ## 11. Testing strategy
 
 ### Rust unit (인메모리 / no DB)
+
 - `db::pg_literals` — PG 리터럴 인라인 round-trip (string escape, bytea hex, NULL, numeric, timestamptz, array, jsonb)
 - `db::decoder` — OID → Cell 매핑 (mock raw bytes)
 - `commands::sqlast::parse_select_target` — 단일 테이블 / JOIN / CTE / `*` 확장
 - `commands::editing::build_update / build_insert / build_delete` — Strict / PkOnly SQL 생성
 
 ### Rust integration (docker postgres:16-alpine)
+
 - `tests/decoder.rs` — 모든 핵심 타입 insert → fetch → 디코드 → assert
 - `tests/editing.rs` — pkOnly / strict 4종 (정상 / 충돌 / NULL / FK 위반)
 - `tests/transactions.rs` — tx_begin → execute × 2 → submit → tx_commit ; abort 케이스 ; drop 시 best-effort rollback
@@ -623,12 +653,14 @@ pub enum TuskError {
 - `tests/history.rs` — 단일 entry / tx 묶음 entry+statements 정확성
 
 ### Frontend unit (vitest — Week 3 시작)
+
 - `lib/sql.ts` (기존) + `lib/pgLiterals` mirror
 - `store/pendingChanges` — upsert/revert/serialize
 - `features/editing/widgets/{Numeric,Json,Bytea,Uuid}` — 검증/생성
 - `features/transactions/TxIndicator` — tx state 변화 렌더
 
 ### Manual verification
+
 - `docs/superpowers/plans/manual-verification-week-3.md`:
   - 12개 위젯 round-trip
   - Strict vs PkOnly 충돌 시뮬레이션 (`psql` 동시 접속)
@@ -696,17 +728,20 @@ infra/postgres/             (기존 docker-compose 그대로)
 writing-plans skill에서 더 잘게 쪼개지지만, 의존성 순서:
 
 ### Phase 1 — 기반 인프라
+
 1. **Decoder 재작성** — `db/decoder.rs`, `Cell` enum. `<unsupported type>` 폐기. `cells.tsx` 렌더 갱신. golden test.
 2. **PG 리터럴 인라인** — `db/pg_literals.rs`. unit test.
 3. **SQL AST 파서 + PK/메타 조회** — `commands/sqlast.rs` + `db/pg_meta.rs` + 60s LRU. `execute_query` 응답에 `meta` 추가.
 4. **History 마이그레이션 + 단일 entry 기록** — migration 002, `commands/history.rs`. `execute_query`가 entry 기록.
 
 ### Phase 2 — 명시적 트랜잭션
+
 5. **Sticky tx 슬롯** — `tx_slot`, `commands/transactions.rs`, drop best-effort rollback.
 6. **Tx 모드 UI** — `store/transactions.ts`, AutoCommitToggle/TxIndicator/TxSidePanel, 단축키, 종료 confirm.
 7. **History tx 묶음 확장** — tx_begin이 entry 만들고 statement append.
 
 ### Phase 3 — 인라인 편집 코어
+
 8. **PendingChanges store + EditableCell 셸** — text fallback만으로 흐름 검증.
 9. **위젯 12종** — Text/Int/Bigint/Numeric/Bool/Date/Time/Timestamp/Uuid/Json/Bytea/Vector + nullable Set NULL.
 10. **Enum / FK 위젯** — `pg_meta` LRU 공유. FK는 참조 PK + 첫 text 컬럼 검색.
@@ -715,17 +750,20 @@ writing-plans skill에서 더 잘게 쪼개지지만, 의존성 순서:
 13. **INSERT / DELETE 행** — `+ Row` 버튼, 우클릭 Delete row.
 
 ### Phase 4 — 보조 기능
+
 14. **쿼리 취소** — `commands/cancel.rs` + 토스트 Cancel.
 15. **Export** — `commands/export.rs` + ExportDialog.
 16. **셀 컨텍스트 메뉴** — Copy / Copy as INSERT / Set NULL / Filter by this value.
 17. **Cmd+P 명령 팔레트** — `features/history/HistoryPalette.tsx`.
 
 ### Phase 5 — 마무리
+
 18. **vitest 셋업 + 핵심 프론트 테스트** — Week 2에서 미뤘던 것 도입.
 19. **수동 검증 체크리스트** — `manual-verification-week-3.md`.
 20. **회귀 가드** — Week 2 verification 재실행.
 
 **의존성 핵심**:
+
 - 1 (decoder) → 8~13 모두의 전제
 - 3 (sqlast + pg_meta) → 8 (편집 진입 가능 여부 게이트)
 - 2 (pg_literals) → 11, 15 (Preview / Copy as INSERT / SQL export 공유)

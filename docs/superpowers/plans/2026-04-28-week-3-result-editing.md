@@ -344,33 +344,54 @@ Edit `src/lib/types.ts`. After existing types, add:
 
 ```ts
 export type PgTypeName =
-  | 'bool' | 'int2' | 'int4' | 'int8' | 'float4' | 'float8' | 'numeric'
-  | 'text' | 'varchar' | 'bpchar' | 'bytea' | 'uuid'
-  | 'inet' | 'cidr' | 'date' | 'time' | 'timetz' | 'timestamp' | 'timestamptz'
-  | 'interval' | 'jsonb' | 'json' | 'enum' | 'vector' | 'unknown';
+  | "bool"
+  | "int2"
+  | "int4"
+  | "int8"
+  | "float4"
+  | "float8"
+  | "numeric"
+  | "text"
+  | "varchar"
+  | "bpchar"
+  | "bytea"
+  | "uuid"
+  | "inet"
+  | "cidr"
+  | "date"
+  | "time"
+  | "timetz"
+  | "timestamp"
+  | "timestamptz"
+  | "interval"
+  | "jsonb"
+  | "json"
+  | "enum"
+  | "vector"
+  | "unknown";
 
 export type Cell =
-  | { kind: 'Null' }
-  | { kind: 'Bool'; value: boolean }
-  | { kind: 'Int'; value: number }
-  | { kind: 'Bigint'; value: string }
-  | { kind: 'Float'; value: number }
-  | { kind: 'Numeric'; value: string }
-  | { kind: 'Text'; value: string }
-  | { kind: 'Bytea'; value: { b64: string } }
-  | { kind: 'Uuid'; value: string }
-  | { kind: 'Inet'; value: string }
-  | { kind: 'Date'; value: string }
-  | { kind: 'Time'; value: string }
-  | { kind: 'Timetz'; value: string }
-  | { kind: 'Timestamp'; value: string }
-  | { kind: 'Timestamptz'; value: string }
-  | { kind: 'Interval'; value: { iso: string } }
-  | { kind: 'Json'; value: unknown }
-  | { kind: 'Array'; value: { elem: string; values: Cell[] } }
-  | { kind: 'Enum'; value: { typeName: string; value: string } }
-  | { kind: 'Vector'; value: { dim: number; values: number[] } }
-  | { kind: 'Unknown'; value: { oid: number; text: string } };
+  | { kind: "Null" }
+  | { kind: "Bool"; value: boolean }
+  | { kind: "Int"; value: number }
+  | { kind: "Bigint"; value: string }
+  | { kind: "Float"; value: number }
+  | { kind: "Numeric"; value: string }
+  | { kind: "Text"; value: string }
+  | { kind: "Bytea"; value: { b64: string } }
+  | { kind: "Uuid"; value: string }
+  | { kind: "Inet"; value: string }
+  | { kind: "Date"; value: string }
+  | { kind: "Time"; value: string }
+  | { kind: "Timetz"; value: string }
+  | { kind: "Timestamp"; value: string }
+  | { kind: "Timestamptz"; value: string }
+  | { kind: "Interval"; value: { iso: string } }
+  | { kind: "Json"; value: unknown }
+  | { kind: "Array"; value: { elem: string; values: Cell[] } }
+  | { kind: "Enum"; value: { typeName: string; value: string } }
+  | { kind: "Vector"; value: { dim: number; values: number[] } }
+  | { kind: "Unknown"; value: { oid: number; text: string } };
 
 export interface ColumnTypeMeta {
   name: string;
@@ -383,8 +404,14 @@ export interface ColumnTypeMeta {
 
 export interface ResultMeta {
   editable: boolean;
-  reason?: 'no-pk' | 'multi-table' | 'computed' | 'pk-not-in-select'
-         | 'too-large' | 'parser-failed' | 'unknown-type';
+  reason?:
+    | "no-pk"
+    | "multi-table"
+    | "computed"
+    | "pk-not-in-select"
+    | "too-large"
+    | "parser-failed"
+    | "unknown-type";
   table?: { schema: string; name: string };
   pkColumns: string[];
   pkColumnIndices: number[];
@@ -1095,42 +1122,54 @@ Replace whatever raw JsonValue rendering exists with a `renderCell(cell: Cell): 
 
 ```tsx
 // src/features/results/cells.tsx
-import type { Cell } from '@/lib/types';
+import type { Cell } from "@/lib/types";
 
 export function renderCell(cell: Cell): React.ReactNode {
   switch (cell.kind) {
-    case 'Null':
-      return <span className="italic text-muted-foreground">NULL</span>;
-    case 'Bool':
-      return cell.value ? 'true' : 'false';
-    case 'Int':
-    case 'Float':
+    case "Null":
+      return <span className="text-muted-foreground italic">NULL</span>;
+    case "Bool":
+      return cell.value ? "true" : "false";
+    case "Int":
+    case "Float":
       return String(cell.value);
-    case 'Bigint':
-    case 'Numeric':
-    case 'Text':
-    case 'Uuid':
-    case 'Inet':
-    case 'Date':
-    case 'Time':
-    case 'Timetz':
-    case 'Timestamp':
-    case 'Timestamptz':
+    case "Bigint":
+    case "Numeric":
+    case "Text":
+    case "Uuid":
+    case "Inet":
+    case "Date":
+    case "Time":
+    case "Timetz":
+    case "Timestamp":
+    case "Timestamptz":
       return cell.value;
-    case 'Interval':
+    case "Interval":
       return cell.value.iso;
-    case 'Bytea':
-      return <span className="font-mono text-xs">\\x{cell.value.b64.slice(0, 24)}…</span>;
-    case 'Json':
-      return <code className="text-xs">{JSON.stringify(cell.value).slice(0, 80)}</code>;
-    case 'Array':
+    case "Bytea":
+      return (
+        <span className="font-mono text-xs">
+          \\x{cell.value.b64.slice(0, 24)}…
+        </span>
+      );
+    case "Json":
+      return (
+        <code className="text-xs">
+          {JSON.stringify(cell.value).slice(0, 80)}
+        </code>
+      );
+    case "Array":
       return `{${cell.value.values.length} items}`;
-    case 'Enum':
+    case "Enum":
       return cell.value.value;
-    case 'Vector':
+    case "Vector":
       return `vector(${cell.value.dim})`;
-    case 'Unknown':
-      return <span className="italic text-muted-foreground">{cell.value.text || `<oid ${cell.value.oid}>`}</span>;
+    case "Unknown":
+      return (
+        <span className="text-muted-foreground italic">
+          {cell.value.text || `<oid ${cell.value.oid}>`}
+        </span>
+      );
   }
 }
 ```
@@ -1962,9 +2001,20 @@ Find where execute_query result is stored (Week 2 stored on the active tab). Add
 
 ```tsx
 // in ResultsGrid.tsx
-{result.meta.editable
-  ? <span title="Editable result" className="text-xs text-amber-500">✏️</span>
-  : <span title={`Read-only — ${result.meta.reason}`} className="text-xs text-muted-foreground">🔒</span>}
+{
+  result.meta.editable ? (
+    <span title="Editable result" className="text-xs text-amber-500">
+      ✏️
+    </span>
+  ) : (
+    <span
+      title={`Read-only — ${result.meta.reason}`}
+      className="text-muted-foreground text-xs"
+    >
+      🔒
+    </span>
+  );
+}
 ```
 
 - [ ] **Step 4: Quality gates + manual smoke**
@@ -2756,9 +2806,9 @@ export interface TxState {
 Create `src/store/transactions.ts`:
 
 ```ts
-import { create } from 'zustand';
-import { invoke } from '@tauri-apps/api/core';
-import type { TxState } from '@/lib/types';
+import { create } from "zustand";
+import { invoke } from "@tauri-apps/api/core";
+import type { TxState } from "@/lib/types";
 
 interface Store {
   byConn: Record<string, TxState>;
@@ -2774,15 +2824,15 @@ export const useTransactions = create<Store>((set, get) => ({
     set((s) => ({ byConn: { ...s.byConn, [snap.connId]: snap } }));
   },
   async begin(connId) {
-    const snap = await invoke<TxState>('tx_begin', { connectionId: connId });
+    const snap = await invoke<TxState>("tx_begin", { connectionId: connId });
     get().applySnapshot(snap);
   },
   async commit(connId) {
-    const snap = await invoke<TxState>('tx_commit', { connectionId: connId });
+    const snap = await invoke<TxState>("tx_commit", { connectionId: connId });
     get().applySnapshot({ ...snap, active: false });
   },
   async rollback(connId) {
-    const snap = await invoke<TxState>('tx_rollback', { connectionId: connId });
+    const snap = await invoke<TxState>("tx_rollback", { connectionId: connId });
     get().applySnapshot({ ...snap, active: false });
   },
 }));
@@ -2797,8 +2847,8 @@ export function isTxActive(connId: string): boolean {
 Create `src/features/transactions/AutoCommitToggle.tsx`:
 
 ```tsx
-import { useTransactions } from '@/store/transactions';
-import { toast } from 'sonner';
+import { useTransactions } from "@/store/transactions";
+import { toast } from "sonner";
 
 export function AutoCommitToggle({ connId }: { connId: string }) {
   const tx = useTransactions((s) => s.byConn[connId]);
@@ -2811,10 +2861,10 @@ export function AutoCommitToggle({ connId }: { connId: string }) {
       if (active) {
         // toggling auto-commit ON while active = abort tx
         await rollback(connId);
-        toast.warning('Transaction rolled back (auto-commit re-enabled)');
+        toast.warning("Transaction rolled back (auto-commit re-enabled)");
       } else {
         await begin(connId);
-        toast.info('Auto-commit OFF — explicit transaction started');
+        toast.info("Auto-commit OFF — explicit transaction started");
       }
     } catch (e) {
       toast.error(`Transaction error: ${String(e)}`);
@@ -2822,8 +2872,8 @@ export function AutoCommitToggle({ connId }: { connId: string }) {
   };
 
   return (
-    <button onClick={onToggle} className="text-xs px-2 py-1 rounded border">
-      Auto-commit: {active ? 'OFF' : 'ON'}
+    <button onClick={onToggle} className="rounded border px-2 py-1 text-xs">
+      Auto-commit: {active ? "OFF" : "ON"}
     </button>
   );
 }
@@ -2834,20 +2884,34 @@ export function AutoCommitToggle({ connId }: { connId: string }) {
 Create `src/features/transactions/TxIndicator.tsx`:
 
 ```tsx
-import { useTransactions } from '@/store/transactions';
+import { useTransactions } from "@/store/transactions";
 
 export function TxIndicator({ connId }: { connId: string }) {
   const tx = useTransactions((s) => s.byConn[connId]);
   if (!tx?.active) return null;
-  const since = tx.startedAt ? `${Math.floor((Date.now() - tx.startedAt) / 1000)}s` : '';
+  const since = tx.startedAt
+    ? `${Math.floor((Date.now() - tx.startedAt) / 1000)}s`
+    : "";
   const commit = useTransactions((s) => s.commit);
   const rollback = useTransactions((s) => s.rollback);
   return (
     <div className="flex items-center gap-2 text-xs">
       <span className="text-amber-500">🟡</span>
-      <span>Transaction · {tx.statementCount} stmts · {since}</span>
-      <button className="px-2 py-0.5 border rounded" onClick={() => commit(connId)}>Commit</button>
-      <button className="px-2 py-0.5 border rounded" onClick={() => rollback(connId)}>Rollback</button>
+      <span>
+        Transaction · {tx.statementCount} stmts · {since}
+      </span>
+      <button
+        className="rounded border px-2 py-0.5"
+        onClick={() => commit(connId)}
+      >
+        Commit
+      </button>
+      <button
+        className="rounded border px-2 py-0.5"
+        onClick={() => rollback(connId)}
+      >
+        Rollback
+      </button>
     </div>
   );
 }
@@ -2858,10 +2922,10 @@ export function TxIndicator({ connId }: { connId: string }) {
 Create `src/features/transactions/TxSidePanel.tsx`:
 
 ```tsx
-import { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { useTransactions } from '@/store/transactions';
-import type { HistoryStatement } from '@/lib/types';
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { useTransactions } from "@/store/transactions";
+import type { HistoryStatement } from "@/lib/types";
 
 export function TxSidePanel({ connId }: { connId: string }) {
   const tx = useTransactions((s) => s.byConn[connId]);
@@ -2874,11 +2938,16 @@ export function TxSidePanel({ connId }: { connId: string }) {
       // Re-fetch list every 1s while tx is active.
       const entryId = await getEntryIdForTx(tx.txId!);
       if (!entryId) return;
-      const list = await invoke<HistoryStatement[]>('list_history_statements', { entryId });
+      const list = await invoke<HistoryStatement[]>("list_history_statements", {
+        entryId,
+      });
       if (!cancelled) setStmts(list);
     };
     const id = setInterval(tick, 1000);
-    return () => { cancelled = true; clearInterval(id); };
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, [tx?.active, tx?.txId]);
 
   if (!tx?.active) return null;
@@ -2898,9 +2967,14 @@ export function TxSidePanel({ connId }: { connId: string }) {
 
 async function getEntryIdForTx(txId: string): Promise<string | null> {
   // Look up the most-recent entry whose tx_id matches.
-  const entries = await invoke<{ id: string; txId?: string }[]>('list_history', {
-    connectionId: null, query: null, limit: 50,
-  });
+  const entries = await invoke<{ id: string; txId?: string }[]>(
+    "list_history",
+    {
+      connectionId: null,
+      query: null,
+      limit: 50,
+    },
+  );
   return entries.find((e) => e.txId === txId)?.id ?? null;
 }
 ```
@@ -2909,15 +2983,27 @@ Add `HistoryStatement` and `HistoryEntry` to `lib/types.ts` if not yet present:
 
 ```ts
 export interface HistoryEntry {
-  id: string; connId: string; source: 'editor' | 'inline' | 'palette';
-  txId?: string; sqlPreview: string; sqlFull?: string;
-  startedAt: number; durationMs: number; rowCount?: number;
-  status: 'ok' | 'error' | 'cancelled' | 'rolled_back' | 'open';
-  errorMessage?: string; statementCount: number;
+  id: string;
+  connId: string;
+  source: "editor" | "inline" | "palette";
+  txId?: string;
+  sqlPreview: string;
+  sqlFull?: string;
+  startedAt: number;
+  durationMs: number;
+  rowCount?: number;
+  status: "ok" | "error" | "cancelled" | "rolled_back" | "open";
+  errorMessage?: string;
+  statementCount: number;
 }
 export interface HistoryStatement {
-  id: string; entryId: string; ordinal: number; sql: string;
-  durationMs: number; rowCount?: number; status: 'ok' | 'error';
+  id: string;
+  entryId: string;
+  ordinal: number;
+  sql: string;
+  durationMs: number;
+  rowCount?: number;
+  status: "ok" | "error";
   errorMessage?: string;
 }
 ```
@@ -2940,29 +3026,34 @@ In the App shell (or `src-tauri/src/lib.rs::on_window_event`), intercept the clo
 
 ```tsx
 // in App.tsx
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 useEffect(() => {
   const win = getCurrentWindow();
   const off = win.onCloseRequested(async (e) => {
-    const active = Object.values(useTransactions.getState().byConn).filter((t) => t.active);
+    const active = Object.values(useTransactions.getState().byConn).filter(
+      (t) => t.active,
+    );
     if (active.length === 0) return;
     e.preventDefault();
     const choice = await openConfirmModal({
-      title: 'Open transactions',
+      title: "Open transactions",
       body: `${active.length} transaction(s) have uncommitted changes.`,
-      buttons: ['Commit all', 'Rollback all', 'Cancel'],
+      buttons: ["Commit all", "Rollback all", "Cancel"],
     });
-    if (choice === 'Commit all') {
+    if (choice === "Commit all") {
       for (const t of active) await useTransactions.getState().commit(t.connId);
       win.close();
-    } else if (choice === 'Rollback all') {
-      for (const t of active) await useTransactions.getState().rollback(t.connId);
+    } else if (choice === "Rollback all") {
+      for (const t of active)
+        await useTransactions.getState().rollback(t.connId);
       win.close();
     }
     // Cancel: just stay open.
   });
-  return () => { off.then((fn) => fn()); };
+  return () => {
+    off.then((fn) => fn());
+  };
 }, []);
 ```
 
@@ -3019,7 +3110,7 @@ export interface PendingChange {
   table: { schema: string; name: string };
   pk: { columns: string[]; values: Cell[] };
   edits: { column: string; original: Cell; next: Cell }[];
-  op: 'update' | 'insert' | 'delete';
+  op: "update" | "insert" | "delete";
   capturedRow: Cell[];
   capturedColumns: string[];
   capturedAt: number;
@@ -3031,8 +3122,8 @@ export interface PendingChange {
 Create `src/store/pendingChanges.ts`:
 
 ```ts
-import { create } from 'zustand';
-import type { Cell, PendingChange, ResultMeta } from '@/lib/types';
+import { create } from "zustand";
+import type { Cell, PendingChange, ResultMeta } from "@/lib/types";
 
 interface Store {
   byRow: Map<string, PendingChange>;
@@ -3064,16 +3155,24 @@ export const usePendingChanges = create<Store>((set, get) => ({
         table: args.table,
         pk: { columns: args.pkColumns, values: args.pkValues },
         edits: [],
-        op: 'update',
+        op: "update",
         capturedRow: args.capturedRow,
         capturedColumns: args.capturedColumns,
         capturedAt: Date.now(),
       };
       const idx = change.edits.findIndex((e) => e.column === args.column);
       if (idx >= 0) {
-        change.edits[idx] = { column: args.column, original: args.original, next: args.next };
+        change.edits[idx] = {
+          column: args.column,
+          original: args.original,
+          next: args.next,
+        };
       } else {
-        change.edits.push({ column: args.column, original: args.original, next: args.next });
+        change.edits.push({
+          column: args.column,
+          original: args.original,
+          next: args.next,
+        });
       }
       next.set(rowKey, change);
       return { byRow: next };
@@ -3108,19 +3207,34 @@ export function pkValuesOf(meta: ResultMeta, row: Cell[]): Cell[] {
 Create `src/features/editing/PendingBadge.tsx`:
 
 ```tsx
-import { usePendingChanges } from '@/store/pendingChanges';
+import { usePendingChanges } from "@/store/pendingChanges";
 
 export function PendingBadge({
-  onPreview, onSubmit, onRevert,
-}: { onPreview: () => void; onSubmit: () => void; onRevert: () => void }) {
+  onPreview,
+  onSubmit,
+  onRevert,
+}: {
+  onPreview: () => void;
+  onSubmit: () => void;
+  onRevert: () => void;
+}) {
   const count = usePendingChanges((s) => s.count());
   if (count === 0) return null;
   return (
     <div className="flex items-center gap-2 text-xs">
       <span>{count} pending</span>
-      <button onClick={onPreview} className="border rounded px-2 py-0.5">Preview</button>
-      <button onClick={onSubmit} className="border rounded px-2 py-0.5 bg-amber-500 text-black">Submit</button>
-      <button onClick={onRevert} className="border rounded px-2 py-0.5">Revert</button>
+      <button onClick={onPreview} className="rounded border px-2 py-0.5">
+        Preview
+      </button>
+      <button
+        onClick={onSubmit}
+        className="rounded border bg-amber-500 px-2 py-0.5 text-black"
+      >
+        Submit
+      </button>
+      <button onClick={onRevert} className="rounded border px-2 py-0.5">
+        Revert
+      </button>
     </div>
   );
 }
@@ -3131,14 +3245,22 @@ export function PendingBadge({
 Create `src/features/editing/EditableCell.tsx`:
 
 ```tsx
-import { useState } from 'react';
-import type { Cell, ResultMeta } from '@/lib/types';
-import { renderCell } from '@/features/results/cells';
-import { usePendingChanges, pkValuesOf } from '@/store/pendingChanges';
+import { useState } from "react";
+import type { Cell, ResultMeta } from "@/lib/types";
+import { renderCell } from "@/features/results/cells";
+import { usePendingChanges, pkValuesOf } from "@/store/pendingChanges";
 
 export function EditableCell({
-  value, columnIndex, row, meta,
-}: { value: Cell; columnIndex: number; row: Cell[]; meta: ResultMeta }) {
+  value,
+  columnIndex,
+  row,
+  meta,
+}: {
+  value: Cell;
+  columnIndex: number;
+  row: Cell[];
+  meta: ResultMeta;
+}) {
   const [editing, setEditing] = useState(false);
   const upsert = usePendingChanges((s) => s.upsertEdit);
   const colName = meta.columnTypes[columnIndex].name;
@@ -3169,8 +3291,12 @@ export function EditableCell({
           });
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') { setEditing(false); }
-          if (e.key === 'Enter') { (e.currentTarget as HTMLInputElement).blur(); }
+          if (e.key === "Escape") {
+            setEditing(false);
+          }
+          if (e.key === "Enter") {
+            (e.currentTarget as HTMLInputElement).blur();
+          }
         }}
       />
     );
@@ -3179,7 +3305,7 @@ export function EditableCell({
   return (
     <span
       onDoubleClick={() => setEditing(true)}
-      className={dirty ? 'bg-amber-500/20 cursor-text' : 'cursor-text'}
+      className={dirty ? "cursor-text bg-amber-500/20" : "cursor-text"}
       title={dirty ? `Original: ${cellAsString(value)}` : undefined}
     >
       {renderCell(display)}
@@ -3189,55 +3315,69 @@ export function EditableCell({
 
 function cellAsString(c: Cell): string {
   switch (c.kind) {
-    case 'Null': return '';
-    case 'Bool': return c.value ? 'true' : 'false';
-    case 'Int':
-    case 'Float': return String(c.value);
-    case 'Bigint':
-    case 'Numeric':
-    case 'Text':
-    case 'Uuid':
-    case 'Inet':
-    case 'Date':
-    case 'Time':
-    case 'Timetz':
-    case 'Timestamp':
-    case 'Timestamptz': return c.value;
-    case 'Interval': return c.value.iso;
-    case 'Json': return JSON.stringify(c.value);
-    case 'Bytea': return c.value.b64;
-    case 'Array': return JSON.stringify(c.value.values);
-    case 'Enum': return c.value.value;
-    case 'Vector': return JSON.stringify(c.value.values);
-    case 'Unknown': return c.value.text;
+    case "Null":
+      return "";
+    case "Bool":
+      return c.value ? "true" : "false";
+    case "Int":
+    case "Float":
+      return String(c.value);
+    case "Bigint":
+    case "Numeric":
+    case "Text":
+    case "Uuid":
+    case "Inet":
+    case "Date":
+    case "Time":
+    case "Timetz":
+    case "Timestamp":
+    case "Timestamptz":
+      return c.value;
+    case "Interval":
+      return c.value.iso;
+    case "Json":
+      return JSON.stringify(c.value);
+    case "Bytea":
+      return c.value.b64;
+    case "Array":
+      return JSON.stringify(c.value.values);
+    case "Enum":
+      return c.value.value;
+    case "Vector":
+      return JSON.stringify(c.value.values);
+    case "Unknown":
+      return c.value.text;
   }
 }
 
 function parseCellLike(original: Cell, raw: string): Cell {
   // Text-only fallback. Per-type widgets in Tasks 12–15 replace this entirely.
   switch (original.kind) {
-    case 'Null':
-      return raw === '' ? { kind: 'Null' } : { kind: 'Text', value: raw };
-    case 'Int':
-      return { kind: 'Int', value: Number(raw) };
-    case 'Float':
-      return { kind: 'Float', value: Number(raw) };
-    case 'Bool':
-      return { kind: 'Bool', value: raw.toLowerCase() === 'true' };
-    case 'Bigint':
-    case 'Numeric':
-    case 'Text':
-    case 'Uuid':
-    case 'Inet':
-    case 'Date':
-    case 'Time':
-    case 'Timetz':
-    case 'Timestamp':
-    case 'Timestamptz':
+    case "Null":
+      return raw === "" ? { kind: "Null" } : { kind: "Text", value: raw };
+    case "Int":
+      return { kind: "Int", value: Number(raw) };
+    case "Float":
+      return { kind: "Float", value: Number(raw) };
+    case "Bool":
+      return { kind: "Bool", value: raw.toLowerCase() === "true" };
+    case "Bigint":
+    case "Numeric":
+    case "Text":
+    case "Uuid":
+    case "Inet":
+    case "Date":
+    case "Time":
+    case "Timetz":
+    case "Timestamp":
+    case "Timestamptz":
       return { ...original, value: raw } as Cell;
-    case 'Json':
-      try { return { kind: 'Json', value: JSON.parse(raw) }; }
-      catch { return original; }
+    case "Json":
+      try {
+        return { kind: "Json", value: JSON.parse(raw) };
+      } catch {
+        return original;
+      }
     default:
       return original; // widgets will handle
   }
@@ -3288,7 +3428,7 @@ git commit -m "feat(frontend): pending changes store + EditableCell text fallbac
 Create `src/features/editing/widgets/types.ts`:
 
 ```ts
-import type { Cell } from '@/lib/types';
+import type { Cell } from "@/lib/types";
 export interface WidgetProps {
   initial: Cell;
   nullable: boolean;
@@ -3302,27 +3442,49 @@ export interface WidgetProps {
 Create `src/features/editing/widgets/Text.tsx`:
 
 ```tsx
-import { useState } from 'react';
-import type { WidgetProps } from './types';
-import { SetNullButton } from './SetNullButton';
+import { useState } from "react";
+import type { WidgetProps } from "./types";
+import { SetNullButton } from "./SetNullButton";
 
-export function TextWidget({ initial, nullable, onCommit, onCancel }: WidgetProps) {
-  const [val, setVal] = useState(initial.kind === 'Null' ? '' : (initial as Extract<typeof initial, { kind: 'Text' }>).value ?? '');
+export function TextWidget({
+  initial,
+  nullable,
+  onCommit,
+  onCancel,
+}: WidgetProps) {
+  const [val, setVal] = useState(
+    initial.kind === "Null"
+      ? ""
+      : ((initial as Extract<typeof initial, { kind: "Text" }>).value ?? ""),
+  );
   const [multiline, setMultiline] = useState(false);
   return (
     <div className="flex items-center gap-1">
       {multiline ? (
         <textarea
-          autoFocus value={val} onChange={(e) => setVal(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) onCommit({ kind: 'Text', value: val }); }}
+          autoFocus
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onCancel();
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey))
+              onCommit({ kind: "Text", value: val });
+          }}
         />
       ) : (
         <input
-          autoFocus value={val} onChange={(e) => setVal(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); if (e.key === 'Enter') onCommit({ kind: 'Text', value: val }); }}
+          autoFocus
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onCancel();
+            if (e.key === "Enter") onCommit({ kind: "Text", value: val });
+          }}
         />
       )}
-      <button onClick={() => setMultiline(!multiline)} className="text-xs">{multiline ? 'single' : 'multi'}</button>
+      <button onClick={() => setMultiline(!multiline)} className="text-xs">
+        {multiline ? "single" : "multi"}
+      </button>
       {nullable && <SetNullButton onCommit={onCommit} />}
     </div>
   );
@@ -3334,24 +3496,47 @@ export function TextWidget({ initial, nullable, onCommit, onCancel }: WidgetProp
 Create `src/features/editing/widgets/Int.tsx`:
 
 ```tsx
-import { useState } from 'react';
-import type { WidgetProps } from './types';
-import { SetNullButton } from './SetNullButton';
+import { useState } from "react";
+import type { WidgetProps } from "./types";
+import { SetNullButton } from "./SetNullButton";
 
-export function IntWidget({ initial, nullable, onCommit, onCancel }: WidgetProps) {
-  const [val, setVal] = useState(initial.kind === 'Int' ? String(initial.value) : '');
+export function IntWidget({
+  initial,
+  nullable,
+  onCommit,
+  onCancel,
+}: WidgetProps) {
+  const [val, setVal] = useState(
+    initial.kind === "Int" ? String(initial.value) : "",
+  );
   const [err, setErr] = useState<string | null>(null);
   const submit = () => {
-    if (!/^-?\d+$/.test(val)) { setErr('integer required'); return; }
+    if (!/^-?\d+$/.test(val)) {
+      setErr("integer required");
+      return;
+    }
     const n = Number(val);
-    if (n < -2147483648 || n > 2147483647) { setErr('out of range for int4'); return; }
-    onCommit({ kind: 'Int', value: n });
+    if (n < -2147483648 || n > 2147483647) {
+      setErr("out of range for int4");
+      return;
+    }
+    onCommit({ kind: "Int", value: n });
   };
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-1">
-        <input autoFocus value={val} onChange={(e) => { setVal(e.target.value); setErr(null); }}
-          onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); if (e.key === 'Enter') submit(); }} />
+        <input
+          autoFocus
+          value={val}
+          onChange={(e) => {
+            setVal(e.target.value);
+            setErr(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onCancel();
+            if (e.key === "Enter") submit();
+          }}
+        />
         {nullable && <SetNullButton onCommit={onCommit} />}
       </div>
       {err && <span className="text-xs text-red-500">{err}</span>}
@@ -3363,28 +3548,53 @@ export function IntWidget({ initial, nullable, onCommit, onCancel }: WidgetProps
 Create `src/features/editing/widgets/Bigint.tsx` — identical to Int but `kind: 'Bigint'` and stores as string; range check is `BigInt(-2^63) <= BigInt(val) <= BigInt(2^63-1)`:
 
 ```tsx
-import { useState } from 'react';
-import type { WidgetProps } from './types';
-import { SetNullButton } from './SetNullButton';
+import { useState } from "react";
+import type { WidgetProps } from "./types";
+import { SetNullButton } from "./SetNullButton";
 
-export function BigintWidget({ initial, nullable, onCommit, onCancel }: WidgetProps) {
-  const [val, setVal] = useState(initial.kind === 'Bigint' ? initial.value : '');
+export function BigintWidget({
+  initial,
+  nullable,
+  onCommit,
+  onCancel,
+}: WidgetProps) {
+  const [val, setVal] = useState(
+    initial.kind === "Bigint" ? initial.value : "",
+  );
   const [err, setErr] = useState<string | null>(null);
   const submit = () => {
-    if (!/^-?\d+$/.test(val)) { setErr('integer required'); return; }
+    if (!/^-?\d+$/.test(val)) {
+      setErr("integer required");
+      return;
+    }
     try {
       const big = BigInt(val);
-      const min = BigInt('-9223372036854775808');
-      const max = BigInt('9223372036854775807');
-      if (big < min || big > max) { setErr('out of range for int8'); return; }
-      onCommit({ kind: 'Bigint', value: val });
-    } catch { setErr('invalid'); }
+      const min = BigInt("-9223372036854775808");
+      const max = BigInt("9223372036854775807");
+      if (big < min || big > max) {
+        setErr("out of range for int8");
+        return;
+      }
+      onCommit({ kind: "Bigint", value: val });
+    } catch {
+      setErr("invalid");
+    }
   };
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-1">
-        <input autoFocus value={val} onChange={(e) => { setVal(e.target.value); setErr(null); }}
-          onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); if (e.key === 'Enter') submit(); }} />
+        <input
+          autoFocus
+          value={val}
+          onChange={(e) => {
+            setVal(e.target.value);
+            setErr(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onCancel();
+            if (e.key === "Enter") submit();
+          }}
+        />
         {nullable && <SetNullButton onCommit={onCommit} />}
       </div>
       {err && <span className="text-xs text-red-500">{err}</span>}
@@ -3396,22 +3606,42 @@ export function BigintWidget({ initial, nullable, onCommit, onCancel }: WidgetPr
 Create `src/features/editing/widgets/Numeric.tsx` — accepts `[-]\d+(\.\d+)?` and stores as string; if a precision/scale is known (would need more meta — we don't have it yet, so accept any and let PG validate):
 
 ```tsx
-import { useState } from 'react';
-import type { WidgetProps } from './types';
-import { SetNullButton } from './SetNullButton';
+import { useState } from "react";
+import type { WidgetProps } from "./types";
+import { SetNullButton } from "./SetNullButton";
 
-export function NumericWidget({ initial, nullable, onCommit, onCancel }: WidgetProps) {
-  const [val, setVal] = useState(initial.kind === 'Numeric' ? initial.value : '');
+export function NumericWidget({
+  initial,
+  nullable,
+  onCommit,
+  onCancel,
+}: WidgetProps) {
+  const [val, setVal] = useState(
+    initial.kind === "Numeric" ? initial.value : "",
+  );
   const [err, setErr] = useState<string | null>(null);
   const submit = () => {
-    if (!/^-?\d+(\.\d+)?$/.test(val)) { setErr('numeric required'); return; }
-    onCommit({ kind: 'Numeric', value: val });
+    if (!/^-?\d+(\.\d+)?$/.test(val)) {
+      setErr("numeric required");
+      return;
+    }
+    onCommit({ kind: "Numeric", value: val });
   };
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-1">
-        <input autoFocus value={val} onChange={(e) => { setVal(e.target.value); setErr(null); }}
-          onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); if (e.key === 'Enter') submit(); }} />
+        <input
+          autoFocus
+          value={val}
+          onChange={(e) => {
+            setVal(e.target.value);
+            setErr(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onCancel();
+            if (e.key === "Enter") submit();
+          }}
+        />
         {nullable && <SetNullButton onCommit={onCommit} />}
       </div>
       {err && <span className="text-xs text-red-500">{err}</span>}
@@ -3423,15 +3653,21 @@ export function NumericWidget({ initial, nullable, onCommit, onCancel }: WidgetP
 Create `src/features/editing/widgets/Bool.tsx`:
 
 ```tsx
-import type { WidgetProps } from './types';
-import { SetNullButton } from './SetNullButton';
+import type { WidgetProps } from "./types";
+import { SetNullButton } from "./SetNullButton";
 
 export function BoolWidget({ initial, nullable, onCommit }: WidgetProps) {
-  const cur = initial.kind === 'Bool' ? initial.value : false;
+  const cur = initial.kind === "Bool" ? initial.value : false;
   return (
     <div className="flex items-center gap-2">
-      <input type="checkbox" defaultChecked={cur} autoFocus
-        onChange={(e) => onCommit({ kind: 'Bool', value: e.currentTarget.checked })} />
+      <input
+        type="checkbox"
+        defaultChecked={cur}
+        autoFocus
+        onChange={(e) =>
+          onCommit({ kind: "Bool", value: e.currentTarget.checked })
+        }
+      />
       {nullable && <SetNullButton onCommit={onCommit} />}
     </div>
   );
@@ -3441,10 +3677,13 @@ export function BoolWidget({ initial, nullable, onCommit }: WidgetProps) {
 Create `src/features/editing/widgets/SetNullButton.tsx`:
 
 ```tsx
-import type { Cell } from '@/lib/types';
+import type { Cell } from "@/lib/types";
 export function SetNullButton({ onCommit }: { onCommit: (c: Cell) => void }) {
   return (
-    <button onClick={() => onCommit({ kind: 'Null' })} className="text-xs px-1 border rounded">
+    <button
+      onClick={() => onCommit({ kind: "Null" })}
+      className="rounded border px-1 text-xs"
+    >
       Set NULL
     </button>
   );
@@ -3456,19 +3695,28 @@ export function SetNullButton({ onCommit }: { onCommit: (c: Cell) => void }) {
 Replace EditableCell's editing branch with a switch on `meta.columnTypes[columnIndex].typeName`. Default falls back to TextWidget (string-cast). Sketch:
 
 ```tsx
-import { TextWidget } from './widgets/Text';
-import { IntWidget } from './widgets/Int';
-import { BigintWidget } from './widgets/Bigint';
-import { NumericWidget } from './widgets/Numeric';
-import { BoolWidget } from './widgets/Bool';
+import { TextWidget } from "./widgets/Text";
+import { IntWidget } from "./widgets/Int";
+import { BigintWidget } from "./widgets/Bigint";
+import { NumericWidget } from "./widgets/Numeric";
+import { BoolWidget } from "./widgets/Bool";
 
 function pickWidget(typeName: string) {
   switch (typeName) {
-    case 'int2': case 'int4': return IntWidget;
-    case 'int8': return BigintWidget;
-    case 'numeric': return NumericWidget;
-    case 'bool': return BoolWidget;
-    case 'text': case 'varchar': case 'bpchar': default: return TextWidget;
+    case "int2":
+    case "int4":
+      return IntWidget;
+    case "int8":
+      return BigintWidget;
+    case "numeric":
+      return NumericWidget;
+    case "bool":
+      return BoolWidget;
+    case "text":
+    case "varchar":
+    case "bpchar":
+    default:
+      return TextWidget;
   }
 }
 ```
@@ -3518,17 +3766,35 @@ git commit -m "feat(frontend): editing widgets — text, int, bigint, numeric, b
 
 ```tsx
 // src/features/editing/widgets/Date.tsx
-import { useState } from 'react';
-import type { WidgetProps } from './types';
-import { SetNullButton } from './SetNullButton';
+import { useState } from "react";
+import type { WidgetProps } from "./types";
+import { SetNullButton } from "./SetNullButton";
 
-export function DateWidget({ initial, nullable, onCommit, onCancel }: WidgetProps) {
-  const [val, setVal] = useState(initial.kind === 'Date' ? initial.value : '');
+export function DateWidget({
+  initial,
+  nullable,
+  onCommit,
+  onCancel,
+}: WidgetProps) {
+  const [val, setVal] = useState(initial.kind === "Date" ? initial.value : "");
   return (
     <div className="flex items-center gap-1">
-      <input type="date" autoFocus value={val} onChange={(e) => setVal(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); if (e.key === 'Enter') onCommit({ kind: 'Date', value: val }); }} />
-      <button onClick={() => onCommit({ kind: 'Date', value: val })} className="text-xs">OK</button>
+      <input
+        type="date"
+        autoFocus
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onCancel();
+          if (e.key === "Enter") onCommit({ kind: "Date", value: val });
+        }}
+      />
+      <button
+        onClick={() => onCommit({ kind: "Date", value: val })}
+        className="text-xs"
+      >
+        OK
+      </button>
       {nullable && <SetNullButton onCommit={onCommit} />}
     </div>
   );
@@ -3537,18 +3803,40 @@ export function DateWidget({ initial, nullable, onCommit, onCancel }: WidgetProp
 
 ```tsx
 // src/features/editing/widgets/Time.tsx
-import { useState } from 'react';
-import type { Cell } from '@/lib/types';
-import type { WidgetProps } from './types';
-import { SetNullButton } from './SetNullButton';
+import { useState } from "react";
+import type { Cell } from "@/lib/types";
+import type { WidgetProps } from "./types";
+import { SetNullButton } from "./SetNullButton";
 
-export function TimeWidget({ initial, nullable, onCommit, onCancel, kind }: WidgetProps & { kind: 'Time' | 'Timetz' }) {
-  const [val, setVal] = useState(initial.kind === kind ? (initial.value as string) : '');
+export function TimeWidget({
+  initial,
+  nullable,
+  onCommit,
+  onCancel,
+  kind,
+}: WidgetProps & { kind: "Time" | "Timetz" }) {
+  const [val, setVal] = useState(
+    initial.kind === kind ? (initial.value as string) : "",
+  );
   return (
     <div className="flex items-center gap-1">
-      <input type="time" step="1" autoFocus value={val} onChange={(e) => setVal(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); if (e.key === 'Enter') onCommit({ kind, value: val } as Cell); }} />
-      <button onClick={() => onCommit({ kind, value: val } as Cell)} className="text-xs">OK</button>
+      <input
+        type="time"
+        step="1"
+        autoFocus
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onCancel();
+          if (e.key === "Enter") onCommit({ kind, value: val } as Cell);
+        }}
+      />
+      <button
+        onClick={() => onCommit({ kind, value: val } as Cell)}
+        className="text-xs"
+      >
+        OK
+      </button>
       {nullable && <SetNullButton onCommit={onCommit} />}
     </div>
   );
@@ -3561,24 +3849,48 @@ export function TimeWidget({ initial, nullable, onCommit, onCancel, kind }: Widg
 
 ```tsx
 // src/features/editing/widgets/Timestamp.tsx
-import { useState } from 'react';
-import type { Cell } from '@/lib/types';
-import type { WidgetProps } from './types';
-import { SetNullButton } from './SetNullButton';
+import { useState } from "react";
+import type { Cell } from "@/lib/types";
+import type { WidgetProps } from "./types";
+import { SetNullButton } from "./SetNullButton";
 
-export function TimestampWidget({ initial, nullable, onCommit, onCancel, kind }:
-  WidgetProps & { kind: 'Timestamp' | 'Timestamptz' }) {
+export function TimestampWidget({
+  initial,
+  nullable,
+  onCommit,
+  onCancel,
+  kind,
+}: WidgetProps & { kind: "Timestamp" | "Timestamptz" }) {
   const [val, setVal] = useState(() => {
     if (initial.kind === kind) return (initial.value as string).slice(0, 19);
-    return '';
+    return "";
   });
-  const tz = kind === 'Timestamptz' ? new Date().getTimezoneOffset() : null;
+  const tz = kind === "Timestamptz" ? new Date().getTimezoneOffset() : null;
   return (
     <div className="flex items-center gap-1">
-      <input type="datetime-local" step="1" autoFocus value={val} onChange={(e) => setVal(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); if (e.key === 'Enter') onCommit({ kind, value: val } as Cell); }} />
-      {tz !== null && <span className="text-xs text-muted-foreground">UTC{(tz <= 0 ? '+' : '-')}{Math.abs(tz / 60)}</span>}
-      <button onClick={() => onCommit({ kind, value: val } as Cell)} className="text-xs">OK</button>
+      <input
+        type="datetime-local"
+        step="1"
+        autoFocus
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onCancel();
+          if (e.key === "Enter") onCommit({ kind, value: val } as Cell);
+        }}
+      />
+      {tz !== null && (
+        <span className="text-muted-foreground text-xs">
+          UTC{tz <= 0 ? "+" : "-"}
+          {Math.abs(tz / 60)}
+        </span>
+      )}
+      <button
+        onClick={() => onCommit({ kind, value: val } as Cell)}
+        className="text-xs"
+      >
+        OK
+      </button>
       {nullable && <SetNullButton onCommit={onCommit} />}
     </div>
   );
@@ -3589,26 +3901,48 @@ export function TimestampWidget({ initial, nullable, onCommit, onCancel, kind }:
 
 ```tsx
 // src/features/editing/widgets/Uuid.tsx
-import { useState } from 'react';
-import type { WidgetProps } from './types';
-import { SetNullButton } from './SetNullButton';
+import { useState } from "react";
+import type { WidgetProps } from "./types";
+import { SetNullButton } from "./SetNullButton";
 
-export function UuidWidget({ initial, nullable, onCommit, onCancel }: WidgetProps) {
-  const [val, setVal] = useState(initial.kind === 'Uuid' ? initial.value : '');
+export function UuidWidget({
+  initial,
+  nullable,
+  onCommit,
+  onCancel,
+}: WidgetProps) {
+  const [val, setVal] = useState(initial.kind === "Uuid" ? initial.value : "");
   const [err, setErr] = useState<string | null>(null);
   const submit = () => {
-    if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(val)) {
-      setErr('invalid uuid'); return;
+    if (
+      !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+        val,
+      )
+    ) {
+      setErr("invalid uuid");
+      return;
     }
-    onCommit({ kind: 'Uuid', value: val });
+    onCommit({ kind: "Uuid", value: val });
   };
   return (
     <div className="flex items-center gap-1">
-      <input autoFocus value={val} onChange={(e) => { setVal(e.target.value); setErr(null); }}
-        onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); if (e.key === 'Enter') submit(); }} />
-      <button onClick={() => setVal(crypto.randomUUID())} className="text-xs">Generate</button>
+      <input
+        autoFocus
+        value={val}
+        onChange={(e) => {
+          setVal(e.target.value);
+          setErr(null);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onCancel();
+          if (e.key === "Enter") submit();
+        }}
+      />
+      <button onClick={() => setVal(crypto.randomUUID())} className="text-xs">
+        Generate
+      </button>
       {nullable && <SetNullButton onCommit={onCommit} />}
-      {err && <span className="text-xs text-red-500 ml-2">{err}</span>}
+      {err && <span className="ml-2 text-xs text-red-500">{err}</span>}
     </div>
   );
 }
@@ -3657,30 +3991,50 @@ git commit -m "feat(frontend): editing widgets — date, time, timestamp(tz), uu
 
 ```tsx
 // src/features/editing/widgets/Json.tsx
-import Editor from '@monaco-editor/react';
-import { useState } from 'react';
-import type { WidgetProps } from './types';
-import { SetNullButton } from './SetNullButton';
+import Editor from "@monaco-editor/react";
+import { useState } from "react";
+import type { WidgetProps } from "./types";
+import { SetNullButton } from "./SetNullButton";
 
-export function JsonWidget({ initial, nullable, onCommit, onCancel }: WidgetProps) {
+export function JsonWidget({
+  initial,
+  nullable,
+  onCommit,
+  onCancel,
+}: WidgetProps) {
   const [val, setVal] = useState(() => {
-    if (initial.kind !== 'Json') return '{}';
+    if (initial.kind !== "Json") return "{}";
     return JSON.stringify(initial.value, null, 2);
   });
   const [err, setErr] = useState<string | null>(null);
   const submit = () => {
-    try { onCommit({ kind: 'Json', value: JSON.parse(val) }); }
-    catch (e) { setErr(String(e)); }
+    try {
+      onCommit({ kind: "Json", value: JSON.parse(val) });
+    } catch (e) {
+      setErr(String(e));
+    }
   };
   return (
-    <div className="flex flex-col w-[360px] h-[180px]">
-      <Editor height="140px" language="json" value={val} onChange={(v) => { setVal(v ?? ''); setErr(null); }}
-        options={{ minimap: { enabled: false }, fontSize: 12 }} />
-      <div className="flex items-center gap-1 mt-1">
-        <button onClick={submit} className="text-xs border rounded px-1">OK</button>
-        <button onClick={onCancel} className="text-xs">Cancel</button>
+    <div className="flex h-[180px] w-[360px] flex-col">
+      <Editor
+        height="140px"
+        language="json"
+        value={val}
+        onChange={(v) => {
+          setVal(v ?? "");
+          setErr(null);
+        }}
+        options={{ minimap: { enabled: false }, fontSize: 12 }}
+      />
+      <div className="mt-1 flex items-center gap-1">
+        <button onClick={submit} className="rounded border px-1 text-xs">
+          OK
+        </button>
+        <button onClick={onCancel} className="text-xs">
+          Cancel
+        </button>
         {nullable && <SetNullButton onCommit={onCommit} />}
-        {err && <span className="text-xs text-red-500 ml-2">{err}</span>}
+        {err && <span className="ml-2 text-xs text-red-500">{err}</span>}
       </div>
     </div>
   );
@@ -3691,48 +4045,79 @@ export function JsonWidget({ initial, nullable, onCommit, onCancel }: WidgetProp
 
 ```tsx
 // src/features/editing/widgets/Bytea.tsx
-import { useState } from 'react';
-import type { WidgetProps } from './types';
-import { SetNullButton } from './SetNullButton';
+import { useState } from "react";
+import type { WidgetProps } from "./types";
+import { SetNullButton } from "./SetNullButton";
 
 function b64ToHex(b64: string): string {
   const bin = atob(b64);
-  let out = '';
-  for (let i = 0; i < bin.length; i++) out += bin.charCodeAt(i).toString(16).padStart(2, '0');
+  let out = "";
+  for (let i = 0; i < bin.length; i++)
+    out += bin.charCodeAt(i).toString(16).padStart(2, "0");
   return out;
 }
 function hexToB64(hex: string): string {
-  const clean = hex.replace(/\s+/g, '').replace(/^\\?x/, '');
-  if (!/^[0-9a-fA-F]*$/.test(clean) || clean.length % 2 !== 0) throw new Error('invalid hex');
+  const clean = hex.replace(/\s+/g, "").replace(/^\\?x/, "");
+  if (!/^[0-9a-fA-F]*$/.test(clean) || clean.length % 2 !== 0)
+    throw new Error("invalid hex");
   const bytes = new Uint8Array(clean.length / 2);
-  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
-  let bin = ''; bytes.forEach((b) => { bin += String.fromCharCode(b); });
+  for (let i = 0; i < bytes.length; i++)
+    bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+  let bin = "";
+  bytes.forEach((b) => {
+    bin += String.fromCharCode(b);
+  });
   return btoa(bin);
 }
 
-export function ByteaWidget({ initial, nullable, onCommit, onCancel }: WidgetProps) {
-  const initB64 = initial.kind === 'Bytea' ? initial.value.b64 : '';
-  const [mode, setMode] = useState<'hex' | 'b64'>('hex');
-  const [val, setVal] = useState(() => mode === 'hex' ? b64ToHex(initB64) : initB64);
+export function ByteaWidget({
+  initial,
+  nullable,
+  onCommit,
+  onCancel,
+}: WidgetProps) {
+  const initB64 = initial.kind === "Bytea" ? initial.value.b64 : "";
+  const [mode, setMode] = useState<"hex" | "b64">("hex");
+  const [val, setVal] = useState(() =>
+    mode === "hex" ? b64ToHex(initB64) : initB64,
+  );
   const [err, setErr] = useState<string | null>(null);
   const submit = () => {
     try {
-      const b64 = mode === 'hex' ? hexToB64(val) : val;
-      onCommit({ kind: 'Bytea', value: { b64 } });
-    } catch (e) { setErr(String(e)); }
+      const b64 = mode === "hex" ? hexToB64(val) : val;
+      onCommit({ kind: "Bytea", value: { b64 } });
+    } catch (e) {
+      setErr(String(e));
+    }
   };
   return (
     <div className="flex items-center gap-1">
-      <select value={mode} onChange={(e) => setMode(e.target.value as 'hex' | 'b64')} className="text-xs">
+      <select
+        value={mode}
+        onChange={(e) => setMode(e.target.value as "hex" | "b64")}
+        className="text-xs"
+      >
         <option value="hex">hex</option>
         <option value="b64">base64</option>
       </select>
-      <input autoFocus value={val} onChange={(e) => { setVal(e.target.value); setErr(null); }}
-        onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); if (e.key === 'Enter') submit(); }}
-        className="font-mono w-[280px]" />
-      <button onClick={submit} className="text-xs">OK</button>
+      <input
+        autoFocus
+        value={val}
+        onChange={(e) => {
+          setVal(e.target.value);
+          setErr(null);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onCancel();
+          if (e.key === "Enter") submit();
+        }}
+        className="w-[280px] font-mono"
+      />
+      <button onClick={submit} className="text-xs">
+        OK
+      </button>
       {nullable && <SetNullButton onCommit={onCommit} />}
-      {err && <span className="text-xs text-red-500 ml-1">{err}</span>}
+      {err && <span className="ml-1 text-xs text-red-500">{err}</span>}
     </div>
   );
 }
@@ -3742,14 +4127,18 @@ export function ByteaWidget({ initial, nullable, onCommit, onCancel }: WidgetPro
 
 ```tsx
 // src/features/editing/widgets/Vector.tsx
-import type { WidgetProps } from './types';
+import type { WidgetProps } from "./types";
 
 export function VectorWidget({ initial, onCancel }: WidgetProps) {
-  if (initial.kind !== 'Vector') return null;
+  if (initial.kind !== "Vector") return null;
   return (
     <div className="text-xs">
-      <span className="italic text-muted-foreground">vector({initial.value.dim}) — read-only in this version</span>
-      <button onClick={onCancel} className="ml-2">Close</button>
+      <span className="text-muted-foreground italic">
+        vector({initial.value.dim}) — read-only in this version
+      </span>
+      <button onClick={onCancel} className="ml-2">
+        Close
+      </button>
     </div>
   );
 }
@@ -3768,7 +4157,9 @@ case 'vector': return VectorWidget;
 For vector, also disable `onDoubleClick` editable activation when typeName is `vector`:
 
 ```tsx
-const isReadonlyType = ['vector', 'unknown'].includes(meta.columnTypes[columnIndex].typeName);
+const isReadonlyType = ["vector", "unknown"].includes(
+  meta.columnTypes[columnIndex].typeName,
+);
 if (!meta.editable || isReadonlyType) return <>{renderCell(value)}</>;
 ```
 
@@ -3799,18 +4190,35 @@ git commit -m "feat(frontend): editing widgets — json (monaco), bytea (hex/bas
 
 ```tsx
 // src/features/editing/widgets/Enum.tsx
-import type { WidgetProps } from './types';
-import { SetNullButton } from './SetNullButton';
+import type { WidgetProps } from "./types";
+import { SetNullButton } from "./SetNullButton";
 
-export function EnumWidget({ initial, nullable, onCommit, onCancel, enumValues, typeName }:
-  WidgetProps & { enumValues: string[]; typeName: string }) {
-  const cur = initial.kind === 'Enum' ? initial.value.value : '';
+export function EnumWidget({
+  initial,
+  nullable,
+  onCommit,
+  onCancel,
+  enumValues,
+  typeName,
+}: WidgetProps & { enumValues: string[]; typeName: string }) {
+  const cur = initial.kind === "Enum" ? initial.value.value : "";
   return (
     <div className="flex items-center gap-1">
-      <select autoFocus defaultValue={cur}
-        onChange={(e) => onCommit({ kind: 'Enum', value: { typeName, value: e.target.value } })}
-        onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}>
-        {enumValues.map((v) => <option key={v} value={v}>{v}</option>)}
+      <select
+        autoFocus
+        defaultValue={cur}
+        onChange={(e) =>
+          onCommit({ kind: "Enum", value: { typeName, value: e.target.value } })
+        }
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onCancel();
+        }}
+      >
+        {enumValues.map((v) => (
+          <option key={v} value={v}>
+            {v}
+          </option>
+        ))}
       </select>
       {nullable && <SetNullButton onCommit={onCommit} />}
     </div>
@@ -3897,30 +4305,44 @@ pub mod fk_lookup;
 
 ```tsx
 // src/features/editing/widgets/Fk.tsx
-import { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import type { Cell } from '@/lib/types';
-import type { WidgetProps } from './types';
-import { SetNullButton } from './SetNullButton';
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import type { Cell } from "@/lib/types";
+import type { WidgetProps } from "./types";
+import { SetNullButton } from "./SetNullButton";
 
-interface FkOption { pkValue: string; display: string }
+interface FkOption {
+  pkValue: string;
+  display: string;
+}
 
 export function FkWidget({
-  initial, nullable, onCommit, onCancel, connId, fk, originalKind,
+  initial,
+  nullable,
+  onCommit,
+  onCancel,
+  connId,
+  fk,
+  originalKind,
 }: WidgetProps & {
   connId: string;
   fk: { schema: string; table: string; column: string };
-  originalKind: 'Int' | 'Bigint' | 'Text' | 'Uuid';
+  originalKind: "Int" | "Bigint" | "Text" | "Uuid";
 }) {
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState("");
   const [opts, setOpts] = useState<FkOption[]>([]);
 
   useEffect(() => {
     const t = setTimeout(() => {
-      invoke<FkOption[]>('fk_lookup', {
-        connectionId: connId, schema: fk.schema, table: fk.table,
-        pkColumn: fk.column, query: q,
-      }).then(setOpts).catch(() => setOpts([]));
+      invoke<FkOption[]>("fk_lookup", {
+        connectionId: connId,
+        schema: fk.schema,
+        table: fk.table,
+        pkColumn: fk.column,
+        query: q,
+      })
+        .then(setOpts)
+        .catch(() => setOpts([]));
     }, 150);
     return () => clearTimeout(t);
   }, [q, connId, fk.schema, fk.table, fk.column]);
@@ -3928,24 +4350,37 @@ export function FkWidget({
   const commit = (raw: string) => {
     const c: Cell = (() => {
       switch (originalKind) {
-        case 'Int': return { kind: 'Int', value: Number(raw) };
-        case 'Bigint': return { kind: 'Bigint', value: raw };
-        case 'Uuid': return { kind: 'Uuid', value: raw };
-        default: return { kind: 'Text', value: raw };
+        case "Int":
+          return { kind: "Int", value: Number(raw) };
+        case "Bigint":
+          return { kind: "Bigint", value: raw };
+        case "Uuid":
+          return { kind: "Uuid", value: raw };
+        default:
+          return { kind: "Text", value: raw };
       }
     })();
     onCommit(c);
   };
 
   return (
-    <div className="flex flex-col w-[280px]">
-      <input autoFocus placeholder={`Search ${fk.table}.${fk.column}`} value={q}
+    <div className="flex w-[280px] flex-col">
+      <input
+        autoFocus
+        placeholder={`Search ${fk.table}.${fk.column}`}
+        value={q}
         onChange={(e) => setQ(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }} />
-      <div className="max-h-40 overflow-auto border mt-1 rounded">
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onCancel();
+        }}
+      />
+      <div className="mt-1 max-h-40 overflow-auto rounded border">
         {opts.map((o) => (
-          <button key={o.pkValue} className="block w-full text-left px-2 py-0.5 hover:bg-muted"
-            onClick={() => commit(o.pkValue)}>
+          <button
+            key={o.pkValue}
+            className="hover:bg-muted block w-full px-2 py-0.5 text-left"
+            onClick={() => commit(o.pkValue)}
+          >
             <span className="font-mono text-xs">{o.pkValue}</span>
             <span className="text-muted-foreground ml-2">{o.display}</span>
           </button>
@@ -3963,18 +4398,25 @@ export function FkWidget({
 // inside pickWidget, before falling through to TextWidget:
 const colMeta = meta.columnTypes[columnIndex];
 if (colMeta.enumValues) {
-  return (props: WidgetProps) => EnumWidget({ ...props, enumValues: colMeta.enumValues!, typeName: 'enum' });
+  return (props: WidgetProps) =>
+    EnumWidget({ ...props, enumValues: colMeta.enumValues!, typeName: "enum" });
 }
 if (colMeta.fk) {
   const originalKind = (() => {
     switch (colMeta.typeName) {
-      case 'int2': case 'int4': return 'Int' as const;
-      case 'int8': return 'Bigint' as const;
-      case 'uuid': return 'Uuid' as const;
-      default: return 'Text' as const;
+      case "int2":
+      case "int4":
+        return "Int" as const;
+      case "int8":
+        return "Bigint" as const;
+      case "uuid":
+        return "Uuid" as const;
+      default:
+        return "Text" as const;
     }
   })();
-  return (props: WidgetProps) => FkWidget({ ...props, connId, fk: colMeta.fk!, originalKind });
+  return (props: WidgetProps) =>
+    FkWidget({ ...props, connId, fk: colMeta.fk!, originalKind });
 }
 ```
 
@@ -3997,6 +4439,7 @@ git commit -m "feat: enum + FK lookup widgets with backend search"
 ## Task 16: editing.rs — `build_update` / `build_insert` / `build_delete` + parameterized exec
 
 **Goal:** Pure builders that turn a `PendingBatch` into:
+
 1. A parameterized `sqlx::query` with bind values (executed against the connection),
 2. A literal-inlined SQL string (for Preview / response).
 
@@ -4611,54 +5054,107 @@ Wire into `lib.rs`:
 Create `src/features/editing/PreviewModal.tsx`:
 
 ```tsx
-import { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { usePendingChanges } from '@/store/pendingChanges';
-import { useSettings } from '@/store/settings';
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { usePendingChanges } from "@/store/pendingChanges";
+import { useSettings } from "@/store/settings";
 
-interface BatchOk { status: 'ok'; batchId: string; executedSql: string; affected: number }
-interface BatchConflict { status: 'conflict'; batchId: string; executedSql: string; current: unknown[] }
-interface BatchError { status: 'error'; batchId: string; executedSql: string; message: string }
+interface BatchOk {
+  status: "ok";
+  batchId: string;
+  executedSql: string;
+  affected: number;
+}
+interface BatchConflict {
+  status: "conflict";
+  batchId: string;
+  executedSql: string;
+  current: unknown[];
+}
+interface BatchError {
+  status: "error";
+  batchId: string;
+  executedSql: string;
+  message: string;
+}
 type BatchResult = BatchOk | BatchConflict | BatchError;
 
 export function PreviewModal({
-  connId, onClose, onSubmitDone,
-}: { connId: string; onClose: () => void; onSubmitDone: (r: BatchResult[]) => void }) {
+  connId,
+  onClose,
+  onSubmitDone,
+}: {
+  connId: string;
+  onClose: () => void;
+  onSubmitDone: (r: BatchResult[]) => void;
+}) {
   const list = usePendingChanges((s) => s.list());
   const mode = useSettings((s) => s.editConflictMode);
   const [previews, setPreviews] = useState<BatchResult[]>([]);
 
   useEffect(() => {
-    invoke<BatchResult[]>('preview_pending_changes', {
-      batches: list.map(toRust), mode,
+    invoke<BatchResult[]>("preview_pending_changes", {
+      batches: list.map(toRust),
+      mode,
     }).then(setPreviews);
   }, [list, mode]);
 
   const submit = async () => {
-    const r = await invoke<{ batches: BatchResult[] }>('submit_pending_changes', {
-      connectionId: connId, batches: list.map(toRust), mode,
-    });
+    const r = await invoke<{ batches: BatchResult[] }>(
+      "submit_pending_changes",
+      {
+        connectionId: connId,
+        batches: list.map(toRust),
+        mode,
+      },
+    );
     onSubmitDone(r.batches);
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-card border rounded p-4 w-[640px] max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-sm font-medium">Preview pending changes ({list.length})</h2>
-        <pre className="text-xs mt-2 whitespace-pre-wrap">{previews.map((p) => p.executedSql).join(';\n\n')}</pre>
-        <p className="text-xs text-muted-foreground mt-2">
-          Actual execution uses parameterized binds; this rendering inlines literals using PG escape rules.
+    <div
+      className="fixed inset-0 flex items-center justify-center bg-black/40"
+      onClick={onClose}
+    >
+      <div
+        className="bg-card max-h-[80vh] w-[640px] overflow-auto rounded border p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-sm font-medium">
+          Preview pending changes ({list.length})
+        </h2>
+        <pre className="mt-2 text-xs whitespace-pre-wrap">
+          {previews.map((p) => p.executedSql).join(";\n\n")}
+        </pre>
+        <p className="text-muted-foreground mt-2 text-xs">
+          Actual execution uses parameterized binds; this rendering inlines
+          literals using PG escape rules.
         </p>
-        <div className="flex justify-end gap-2 mt-3">
-          <button onClick={onClose} className="text-xs">Cancel</button>
-          <button onClick={submit} className="text-xs px-2 py-0.5 bg-amber-500 text-black rounded">Submit Now</button>
+        <div className="mt-3 flex justify-end gap-2">
+          <button onClick={onClose} className="text-xs">
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            className="rounded bg-amber-500 px-2 py-0.5 text-xs text-black"
+          >
+            Submit Now
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function toRust(p: ReturnType<typeof usePendingChanges>['getState'] extends (() => infer S) ? S extends { list(): infer L } ? L extends Array<infer X> ? X : never : never : never): unknown {
+function toRust(
+  p: ReturnType<typeof usePendingChanges>["getState"] extends () => infer S
+    ? S extends { list(): infer L }
+      ? L extends Array<infer X>
+        ? X
+        : never
+      : never
+    : never,
+): unknown {
   // The store already keeps fields in camelCase; Tauri serde handles snake_case
   // mapping automatically given #[serde(rename_all = "camelCase")] on the Rust side.
   return p;
@@ -4701,6 +5197,7 @@ git commit -m "feat: submit/preview pending changes + PreviewModal"
 ## Task 18: Strict mode + ConflictModal + atomic rollback
 
 **Goal:** UI for the conflict resolution flow. Backend already does atomic rollback (Task 17). This task adds:
+
 1. Settings UI for the PkOnly / Strict toggle.
 2. ConflictModal showing diff of "your edits" vs "server now" + three actions (Force overwrite, Discard, Re-edit on top of server).
 3. Integration test for atomic rollback under multi-batch conflict.
@@ -4718,24 +5215,28 @@ git commit -m "feat: submit/preview pending changes + PreviewModal"
 Add a small dropdown in the result grid header (next to ✏️ indicator):
 
 ```tsx
-import { useSettings } from '@/store/settings';
+import { useSettings } from "@/store/settings";
 const mode = useSettings((s) => s.editConflictMode);
 const setMode = useSettings((s) => s.setEditConflictMode);
 // ...
-<select value={mode} onChange={(e) => setMode(e.target.value as 'pkOnly' | 'strict')} className="text-xs">
+<select
+  value={mode}
+  onChange={(e) => setMode(e.target.value as "pkOnly" | "strict")}
+  className="text-xs"
+>
   <option value="pkOnly">PK only</option>
   <option value="strict">Strict</option>
-</select>
+</select>;
 ```
 
 - [ ] **Step 2: ConflictModal**
 
 ```tsx
 // src/features/editing/ConflictModal.tsx
-import { useState } from 'react';
-import type { Cell, PendingChange } from '@/lib/types';
-import { renderCell } from '@/features/results/cells';
-import { usePendingChanges } from '@/store/pendingChanges';
+import { useState } from "react";
+import type { Cell, PendingChange } from "@/lib/types";
+import { renderCell } from "@/features/results/cells";
+import { usePendingChanges } from "@/store/pendingChanges";
 
 interface Props {
   conflict: { batchId: string; current: Cell[] };
@@ -4746,19 +5247,41 @@ interface Props {
   onClose: () => void;
 }
 
-export function ConflictModal({ conflict, pending, capturedColumns, onForceOverwrite, onDiscard, onClose }: Props) {
+export function ConflictModal({
+  conflict,
+  pending,
+  capturedColumns,
+  onForceOverwrite,
+  onDiscard,
+  onClose,
+}: Props) {
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-card border rounded p-4 w-[520px]" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-sm font-medium">Row was modified by someone else</h2>
-        <table className="text-xs mt-2 w-full">
+    <div
+      className="fixed inset-0 flex items-center justify-center bg-black/40"
+      onClick={onClose}
+    >
+      <div
+        className="bg-card w-[520px] rounded border p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-sm font-medium">
+          Row was modified by someone else
+        </h2>
+        <table className="mt-2 w-full text-xs">
           <thead>
-            <tr><th>Column</th><th>Your edit</th><th>Server now</th></tr>
+            <tr>
+              <th>Column</th>
+              <th>Your edit</th>
+              <th>Server now</th>
+            </tr>
           </thead>
           <tbody>
             {pending.edits.map((e, i) => {
               const colIdx = capturedColumns.indexOf(e.column);
-              const serverNow = colIdx >= 0 ? conflict.current[colIdx] : { kind: 'Unknown', value: { oid: 0, text: '?' } } as Cell;
+              const serverNow =
+                colIdx >= 0
+                  ? conflict.current[colIdx]
+                  : ({ kind: "Unknown", value: { oid: 0, text: "?" } } as Cell);
               return (
                 <tr key={i}>
                   <td className="pr-2">{e.column}</td>
@@ -4769,17 +5292,30 @@ export function ConflictModal({ conflict, pending, capturedColumns, onForceOverw
             })}
           </tbody>
         </table>
-        <div className="flex justify-end gap-2 mt-3 text-xs">
+        <div className="mt-3 flex justify-end gap-2 text-xs">
           <button onClick={onDiscard}>Discard your edits</button>
-          <button onClick={() => {
-            // Re-edit on top of server: replace capturedRow + reset originals
-            const updated = { ...pending, capturedRow: conflict.current, capturedAt: Date.now() };
-            const next = new Map(usePendingChanges.getState().byRow);
-            next.set(pending.rowKey, updated);
-            usePendingChanges.setState({ byRow: next });
-            onClose();
-          }}>Re-edit on top of server</button>
-          <button onClick={onForceOverwrite} className="px-2 py-0.5 border rounded">Force overwrite</button>
+          <button
+            onClick={() => {
+              // Re-edit on top of server: replace capturedRow + reset originals
+              const updated = {
+                ...pending,
+                capturedRow: conflict.current,
+                capturedAt: Date.now(),
+              };
+              const next = new Map(usePendingChanges.getState().byRow);
+              next.set(pending.rowKey, updated);
+              usePendingChanges.setState({ byRow: next });
+              onClose();
+            }}
+          >
+            Re-edit on top of server
+          </button>
+          <button
+            onClick={onForceOverwrite}
+            className="rounded border px-2 py-0.5"
+          >
+            Force overwrite
+          </button>
         </div>
       </div>
     </div>
@@ -4794,11 +5330,15 @@ export function ConflictModal({ conflict, pending, capturedColumns, onForceOverw
 After `submit_pending_changes` returns:
 
 ```tsx
-const conflicts = result.batches.filter((b) => b.status === 'conflict') as BatchConflict[];
+const conflicts = result.batches.filter(
+  (b) => b.status === "conflict",
+) as BatchConflict[];
 if (conflicts.length > 0) {
   setActiveConflict(conflicts[0]); // show first; user resolves one at a time
 } else {
-  toast.success(`${result.batches.filter((b) => b.status === 'ok').length} row(s) updated`);
+  toast.success(
+    `${result.batches.filter((b) => b.status === "ok").length} row(s) updated`,
+  );
   usePendingChanges.getState().revertAll();
 }
 ```
@@ -4942,10 +5482,19 @@ deleteRow({ table, pkColumns, pkValues, capturedRow, capturedColumns }) {
 In `ResultsGrid.tsx`, when `meta.editable`:
 
 ```tsx
-<button onClick={() => usePendingChanges.getState().insertRow({
-  table: meta.table!, pkColumns: meta.pkColumns,
-  defaults: {}, capturedColumns: meta.columnTypes.map((c) => c.name),
-})} className="text-xs">+ Row</button>
+<button
+  onClick={() =>
+    usePendingChanges.getState().insertRow({
+      table: meta.table!,
+      pkColumns: meta.pkColumns,
+      defaults: {},
+      capturedColumns: meta.columnTypes.map((c) => c.name),
+    })
+  }
+  className="text-xs"
+>
+  + Row
+</button>
 ```
 
 The new row shows up as a "ghost" row (rendered separately above pending edits) where every cell can be edited via the same widgets. PK columns may need to be filled before submit if they're not auto-generated; if they're missing, the backend insert will error and the modal shows it.
@@ -4955,12 +5504,20 @@ The new row shows up as a "ghost" row (rendered separately above pending edits) 
 In each row's leftmost cell, add a small ✕ button when `meta.editable`:
 
 ```tsx
-<button onClick={() => usePendingChanges.getState().deleteRow({
-  table: meta.table!, pkColumns: meta.pkColumns,
-  pkValues: pkValuesOf(meta, row),
-  capturedRow: row,
-  capturedColumns: meta.columnTypes.map((c) => c.name),
-})} className="text-xs text-red-500">✕</button>
+<button
+  onClick={() =>
+    usePendingChanges.getState().deleteRow({
+      table: meta.table!,
+      pkColumns: meta.pkColumns,
+      pkValues: pkValuesOf(meta, row),
+      capturedRow: row,
+      capturedColumns: meta.columnTypes.map((c) => c.name),
+    })
+  }
+  className="text-xs text-red-500"
+>
+  ✕
+</button>
 ```
 
 (The full ContextMenu in Task 22 supersedes this.)
@@ -5046,25 +5603,34 @@ let _ = app_handle.emit("query:started", serde_json::json!({
 Listen for `query:started` and show a sonner toast with action button after 500ms:
 
 ```tsx
-import { listen } from '@tauri-apps/api/event';
-import { toast } from 'sonner';
+import { listen } from "@tauri-apps/api/event";
+import { toast } from "sonner";
 
 useEffect(() => {
-  const u = listen<{ connId: string; pid: number; startedAt: number }>('query:started', (ev) => {
-    const t = setTimeout(() => {
-      const id = toast('Running query...', {
-        action: {
-          label: 'Cancel',
-          onClick: () => invoke('cancel_query', { connectionId: ev.payload.connId, pid: ev.payload.pid }),
-        },
-        duration: Infinity,
-      });
-      // Dismiss when query completes (next 'query:started' or completion event).
-      void id;
-    }, 500);
-    return () => clearTimeout(t);
-  });
-  return () => { u.then((fn) => fn()); };
+  const u = listen<{ connId: string; pid: number; startedAt: number }>(
+    "query:started",
+    (ev) => {
+      const t = setTimeout(() => {
+        const id = toast("Running query...", {
+          action: {
+            label: "Cancel",
+            onClick: () =>
+              invoke("cancel_query", {
+                connectionId: ev.payload.connId,
+                pid: ev.payload.pid,
+              }),
+          },
+          duration: Infinity,
+        });
+        // Dismiss when query completes (next 'query:started' or completion event).
+        void id;
+      }, 500);
+      return () => clearTimeout(t);
+    },
+  );
+  return () => {
+    u.then((fn) => fn());
+  };
 }, []);
 ```
 
@@ -5259,10 +5825,10 @@ Wire + invoke handler.
 
 ```tsx
 // src/features/export/ExportDialog.tsx
-import { useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { save } from '@tauri-apps/plugin-dialog';
-import type { Cell, ResultMeta } from '@/lib/types';
+import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
+import type { Cell, ResultMeta } from "@/lib/types";
 
 interface Props {
   rows: Cell[][];
@@ -5271,14 +5837,21 @@ interface Props {
 }
 
 export function ExportDialog({ rows, meta, onClose }: Props) {
-  const [format, setFormat] = useState<'Csv' | 'Json' | 'SqlInsert'>('Csv');
+  const [format, setFormat] = useState<"Csv" | "Json" | "SqlInsert">("Csv");
   const [bom, setBom] = useState(false);
-  const [scope, setScope] = useState<'all' | 'selected'>('all');
+  const [scope, setScope] = useState<"all" | "selected">("all");
 
   const run = async () => {
     const path = await save({
-      defaultPath: meta.table?.name ?? 'result',
-      filters: [{ name: format, extensions: [format === 'Csv' ? 'csv' : format === 'Json' ? 'json' : 'sql'] }],
+      defaultPath: meta.table?.name ?? "result",
+      filters: [
+        {
+          name: format,
+          extensions: [
+            format === "Csv" ? "csv" : format === "Json" ? "json" : "sql",
+          ],
+        },
+      ],
     });
     if (!path) return;
     const cols = meta.columnTypes.map((c) => c.name);
@@ -5287,45 +5860,78 @@ export function ExportDialog({ rows, meta, onClose }: Props) {
     // when the user picks "Selected rows" without an actual selection
     // mechanism by exporting an empty array — the user sees an empty file
     // and can rerun with "All rows".
-    const useRows = scope === 'all' ? rows : [];
-    await invoke('export_result', {
+    const useRows = scope === "all" ? rows : [];
+    await invoke("export_result", {
       req: {
-        format, path, columns: cols, rows: useRows,
+        format,
+        path,
+        columns: cols,
+        rows: useRows,
         includeBom: bom,
-        table: format === 'SqlInsert' ? `"${meta.table?.schema}"."${meta.table?.name}"` : null,
+        table:
+          format === "SqlInsert"
+            ? `"${meta.table?.schema}"."${meta.table?.name}"`
+            : null,
       },
     });
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-card border rounded p-4 w-[360px]" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 flex items-center justify-center bg-black/40"
+      onClick={onClose}
+    >
+      <div
+        className="bg-card w-[360px] rounded border p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-sm font-medium">Export result</h2>
-        <div className="text-xs mt-2 space-y-1">
+        <div className="mt-2 space-y-1 text-xs">
           <div>
-            Format: <select value={format} onChange={(e) => setFormat(e.target.value as 'Csv' | 'Json' | 'SqlInsert')}>
+            Format:{" "}
+            <select
+              value={format}
+              onChange={(e) =>
+                setFormat(e.target.value as "Csv" | "Json" | "SqlInsert")
+              }
+            >
               <option value="Csv">CSV</option>
               <option value="Json">JSON</option>
               <option value="SqlInsert">SQL INSERT</option>
             </select>
           </div>
-          {format === 'Csv' && (
-            <label><input type="checkbox" checked={bom} onChange={(e) => setBom(e.target.checked)} /> UTF-8 BOM</label>
+          {format === "Csv" && (
+            <label>
+              <input
+                type="checkbox"
+                checked={bom}
+                onChange={(e) => setBom(e.target.checked)}
+              />{" "}
+              UTF-8 BOM
+            </label>
           )}
           <div>
-            Scope: <select value={scope} onChange={(e) => setScope(e.target.value as 'all' | 'selected')}>
+            Scope:{" "}
+            <select
+              value={scope}
+              onChange={(e) => setScope(e.target.value as "all" | "selected")}
+            >
               <option value="all">All rows</option>
               <option value="selected">Selected rows</option>
             </select>
           </div>
-          {format === 'SqlInsert' && !meta.table && (
-            <p className="text-red-500">SQL INSERT requires a single-table source.</p>
+          {format === "SqlInsert" && !meta.table && (
+            <p className="text-red-500">
+              SQL INSERT requires a single-table source.
+            </p>
           )}
         </div>
-        <div className="flex justify-end gap-2 mt-3 text-xs">
+        <div className="mt-3 flex justify-end gap-2 text-xs">
           <button onClick={onClose}>Cancel</button>
-          <button onClick={run} className="border rounded px-2">Export</button>
+          <button onClick={run} className="rounded border px-2">
+            Export
+          </button>
         </div>
       </div>
     </div>
@@ -5366,14 +5972,18 @@ git commit -m "feat: export result to CSV / JSON / SQL INSERT"
 
 ```tsx
 // src/features/results/ContextMenu.tsx
-import type { Cell, ResultMeta } from '@/lib/types';
-import { invoke } from '@tauri-apps/api/core';
-import { writeText } from '@tauri-apps/plugin-clipboard-manager';
-import { usePendingChanges, pkValuesOf } from '@/store/pendingChanges';
+import type { Cell, ResultMeta } from "@/lib/types";
+import { invoke } from "@tauri-apps/api/core";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { usePendingChanges, pkValuesOf } from "@/store/pendingChanges";
 
 export function CellContextMenu({
-  cell, columnIndex, row, meta,
-  onClose, onFilter,
+  cell,
+  columnIndex,
+  row,
+  meta,
+  onClose,
+  onFilter,
 }: {
   cell: Cell;
   columnIndex: number;
@@ -5393,8 +6003,8 @@ export function CellContextMenu({
 
   const copyAsInsert = async () => {
     if (!meta.table) return onClose();
-    const cols = meta.columnTypes.map((c) => `"${c.name}"`).join(', ');
-    const literals = await invoke<string>('preview_inline_literals', { row });
+    const cols = meta.columnTypes.map((c) => `"${c.name}"`).join(", ");
+    const literals = await invoke<string>("preview_inline_literals", { row });
     const text = `INSERT INTO "${meta.table.schema}"."${meta.table.name}" (${cols}) VALUES (${literals});`;
     await writeText(text);
     onClose();
@@ -5408,7 +6018,7 @@ export function CellContextMenu({
       pkValues: pkValuesOf(meta, row),
       column: colName,
       original: cell,
-      next: { kind: 'Null' },
+      next: { kind: "Null" },
       capturedRow: row,
       capturedColumns: meta.columnTypes.map((c) => c.name),
     });
@@ -5416,30 +6026,75 @@ export function CellContextMenu({
   };
 
   return (
-    <div className="absolute bg-card border rounded shadow text-xs">
-      <button onClick={copyText} className="block w-full text-left px-2 py-1 hover:bg-muted">Copy</button>
-      <button onClick={copyAsInsert} className="block w-full text-left px-2 py-1 hover:bg-muted" disabled={!meta.table}>Copy as INSERT</button>
-      {nullable && <button onClick={setNull} className="block w-full text-left px-2 py-1 hover:bg-muted">Set NULL</button>}
-      <button onClick={() => { onFilter(colName, cell); onClose(); }} className="block w-full text-left px-2 py-1 hover:bg-muted">Filter by this value</button>
+    <div className="bg-card absolute rounded border text-xs shadow">
+      <button
+        onClick={copyText}
+        className="hover:bg-muted block w-full px-2 py-1 text-left"
+      >
+        Copy
+      </button>
+      <button
+        onClick={copyAsInsert}
+        className="hover:bg-muted block w-full px-2 py-1 text-left"
+        disabled={!meta.table}
+      >
+        Copy as INSERT
+      </button>
+      {nullable && (
+        <button
+          onClick={setNull}
+          className="hover:bg-muted block w-full px-2 py-1 text-left"
+        >
+          Set NULL
+        </button>
+      )}
+      <button
+        onClick={() => {
+          onFilter(colName, cell);
+          onClose();
+        }}
+        className="hover:bg-muted block w-full px-2 py-1 text-left"
+      >
+        Filter by this value
+      </button>
     </div>
   );
 }
 
 function cellToText(c: Cell): string {
   switch (c.kind) {
-    case 'Null': return 'NULL';
-    case 'Bool': return c.value ? 'true' : 'false';
-    case 'Int':
-    case 'Float': return String(c.value);
-    case 'Bigint': case 'Numeric': case 'Text': case 'Uuid': case 'Inet':
-    case 'Date': case 'Time': case 'Timetz': case 'Timestamp': case 'Timestamptz': return c.value;
-    case 'Interval': return c.value.iso;
-    case 'Bytea': return `\\x${c.value.b64}`;
-    case 'Json': return JSON.stringify(c.value);
-    case 'Array': return JSON.stringify(c.value.values);
-    case 'Enum': return c.value.value;
-    case 'Vector': return JSON.stringify(c.value.values);
-    case 'Unknown': return c.value.text;
+    case "Null":
+      return "NULL";
+    case "Bool":
+      return c.value ? "true" : "false";
+    case "Int":
+    case "Float":
+      return String(c.value);
+    case "Bigint":
+    case "Numeric":
+    case "Text":
+    case "Uuid":
+    case "Inet":
+    case "Date":
+    case "Time":
+    case "Timetz":
+    case "Timestamp":
+    case "Timestamptz":
+      return c.value;
+    case "Interval":
+      return c.value.iso;
+    case "Bytea":
+      return `\\x${c.value.b64}`;
+    case "Json":
+      return JSON.stringify(c.value);
+    case "Array":
+      return JSON.stringify(c.value.values);
+    case "Enum":
+      return c.value.value;
+    case "Vector":
+      return JSON.stringify(c.value.values);
+    case "Unknown":
+      return c.value.text;
   }
 }
 ```
@@ -5453,34 +6108,52 @@ For "Filter by this value", the simplest non-invasive option: append `WHERE "<co
 Implement `src/lib/pgLiterals.ts` with the same logic as Rust's `to_literal`. Keep the test parity by writing a vitest spec in Task 23 that asserts identical outputs for every Cell variant. For now:
 
 ```ts
-import type { Cell } from './types';
+import type { Cell } from "./types";
 
 export function toLiteral(c: Cell): string {
   switch (c.kind) {
-    case 'Null': return 'NULL';
-    case 'Bool': return c.value ? 'TRUE' : 'FALSE';
-    case 'Int':
-    case 'Float': return String(c.value);
-    case 'Bigint':
-    case 'Numeric': return c.value;
-    case 'Text': return quote(c.value);
-    case 'Bytea': return `'\\x${b64ToHex(c.value.b64)}'::bytea`;
-    case 'Uuid': return `${quote(c.value)}::uuid`;
-    case 'Inet': return `${quote(c.value)}::inet`;
-    case 'Date': return `${quote(c.value)}::date`;
-    case 'Time': return `${quote(c.value)}::time`;
-    case 'Timetz': return `${quote(c.value)}::timetz`;
-    case 'Timestamp': return `${quote(c.value)}::timestamp`;
-    case 'Timestamptz': return `${quote(c.value)}::timestamptz`;
-    case 'Interval': return `${quote(c.value.iso)}::interval`;
-    case 'Json': return `${quote(JSON.stringify(c.value))}::jsonb`;
-    case 'Enum': return `${quote(c.value.value)}::${c.value.typeName}`;
-    case 'Array': {
-      const inner = c.value.values.map(toLiteral).join(',');
+    case "Null":
+      return "NULL";
+    case "Bool":
+      return c.value ? "TRUE" : "FALSE";
+    case "Int":
+    case "Float":
+      return String(c.value);
+    case "Bigint":
+    case "Numeric":
+      return c.value;
+    case "Text":
+      return quote(c.value);
+    case "Bytea":
+      return `'\\x${b64ToHex(c.value.b64)}'::bytea`;
+    case "Uuid":
+      return `${quote(c.value)}::uuid`;
+    case "Inet":
+      return `${quote(c.value)}::inet`;
+    case "Date":
+      return `${quote(c.value)}::date`;
+    case "Time":
+      return `${quote(c.value)}::time`;
+    case "Timetz":
+      return `${quote(c.value)}::timetz`;
+    case "Timestamp":
+      return `${quote(c.value)}::timestamp`;
+    case "Timestamptz":
+      return `${quote(c.value)}::timestamptz`;
+    case "Interval":
+      return `${quote(c.value.iso)}::interval`;
+    case "Json":
+      return `${quote(JSON.stringify(c.value))}::jsonb`;
+    case "Enum":
+      return `${quote(c.value.value)}::${c.value.typeName}`;
+    case "Array": {
+      const inner = c.value.values.map(toLiteral).join(",");
       return `ARRAY[${inner}]::${c.value.elem}[]`;
     }
-    case 'Vector': return `${quote(`[${c.value.values.join(',')}]`)}::vector`;
-    case 'Unknown': return `${quote(c.value.text)}::text`;
+    case "Vector":
+      return `${quote(`[${c.value.values.join(",")}]`)}::vector`;
+    case "Unknown":
+      return `${quote(c.value.text)}::text`;
   }
 }
 
@@ -5489,8 +6162,9 @@ function quote(s: string): string {
 }
 function b64ToHex(b64: string): string {
   const bin = atob(b64);
-  let out = '';
-  for (let i = 0; i < bin.length; i++) out += bin.charCodeAt(i).toString(16).padStart(2, '0');
+  let out = "";
+  for (let i = 0; i < bin.length; i++)
+    out += bin.charCodeAt(i).toString(16).padStart(2, "0");
   return out;
 }
 ```
@@ -5499,9 +6173,9 @@ function b64ToHex(b64: string): string {
 
 ```ts
 // src/store/history.ts
-import { create } from 'zustand';
-import { invoke } from '@tauri-apps/api/core';
-import type { HistoryEntry } from '@/lib/types';
+import { create } from "zustand";
+import { invoke } from "@tauri-apps/api/core";
+import type { HistoryEntry } from "@/lib/types";
 
 interface S {
   entries: HistoryEntry[];
@@ -5510,8 +6184,10 @@ interface S {
 export const useHistory = create<S>((set) => ({
   entries: [],
   async search(query, connId) {
-    const e = await invoke<HistoryEntry[]>('list_history', {
-      connectionId: connId ?? null, query: query || null, limit: 50,
+    const e = await invoke<HistoryEntry[]>("list_history", {
+      connectionId: connId ?? null,
+      query: query || null,
+      limit: 50,
     });
     set({ entries: e });
   },
@@ -5520,29 +6196,59 @@ export const useHistory = create<S>((set) => ({
 
 ```tsx
 // src/features/history/HistoryPalette.tsx
-import { useEffect, useState } from 'react';
-import { useHistory } from '@/store/history';
+import { useEffect, useState } from "react";
+import { useHistory } from "@/store/history";
 
-export function HistoryPalette({ onClose, onPick }: { onClose: () => void; onPick: (sql: string) => void }) {
-  const [q, setQ] = useState('');
+export function HistoryPalette({
+  onClose,
+  onPick,
+}: {
+  onClose: () => void;
+  onPick: (sql: string) => void;
+}) {
+  const [q, setQ] = useState("");
   const entries = useHistory((s) => s.entries);
   const search = useHistory((s) => s.search);
 
   useEffect(() => {
-    const t = setTimeout(() => { void search(q); }, 120);
+    const t = setTimeout(() => {
+      void search(q);
+    }, 120);
     return () => clearTimeout(t);
   }, [q, search]);
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-start justify-center pt-24" onClick={onClose}>
-      <div className="bg-card border rounded p-2 w-[640px]" onClick={(e) => e.stopPropagation()}>
-        <input autoFocus placeholder="Search history…" value={q} onChange={(e) => setQ(e.target.value)} className="w-full" />
+    <div
+      className="fixed inset-0 flex items-start justify-center bg-black/40 pt-24"
+      onClick={onClose}
+    >
+      <div
+        className="bg-card w-[640px] rounded border p-2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <input
+          autoFocus
+          placeholder="Search history…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="w-full"
+        />
         <ul className="mt-2 max-h-[60vh] overflow-auto">
           {entries.map((e) => (
-            <li key={e.id} className="text-xs py-1 cursor-pointer hover:bg-muted" onClick={() => onPick(e.sqlFull ?? e.sqlPreview)}>
-              <span className="text-muted-foreground mr-2">{new Date(e.startedAt).toISOString().slice(0, 19)}</span>
+            <li
+              key={e.id}
+              className="hover:bg-muted cursor-pointer py-1 text-xs"
+              onClick={() => onPick(e.sqlFull ?? e.sqlPreview)}
+            >
+              <span className="text-muted-foreground mr-2">
+                {new Date(e.startedAt).toISOString().slice(0, 19)}
+              </span>
               <span>{e.sqlPreview}</span>
-              {e.statementCount > 1 && <span className="ml-2 text-amber-500">(tx · {e.statementCount} stmts)</span>}
+              {e.statementCount > 1 && (
+                <span className="ml-2 text-amber-500">
+                  (tx · {e.statementCount} stmts)
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -5591,24 +6297,24 @@ pnpm add -D vitest jsdom @testing-library/react @testing-library/jest-dom @vites
 Create `vitest.config.ts`:
 
 ```ts
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
+    environment: "jsdom",
     globals: true,
-    setupFiles: ['./src/test-setup.ts'],
+    setupFiles: ["./src/test-setup.ts"],
   },
-  resolve: { alias: { '@': '/src' } },
+  resolve: { alias: { "@": "/src" } },
 });
 ```
 
 Create `src/test-setup.ts`:
 
 ```ts
-import '@testing-library/jest-dom';
+import "@testing-library/jest-dom";
 ```
 
 Add to `package.json`:
@@ -5624,57 +6330,73 @@ Add to `package.json`:
 
 ```ts
 // src/store/pendingChanges.test.ts
-import { describe, it, expect, beforeEach } from 'vitest';
-import { usePendingChanges } from './pendingChanges';
-import type { Cell } from '@/lib/types';
+import { describe, it, expect, beforeEach } from "vitest";
+import { usePendingChanges } from "./pendingChanges";
+import type { Cell } from "@/lib/types";
 
-const T = { schema: 'public', name: 'users' };
+const T = { schema: "public", name: "users" };
 
-describe('pendingChanges store', () => {
-  beforeEach(() => { usePendingChanges.getState().revertAll(); });
+describe("pendingChanges store", () => {
+  beforeEach(() => {
+    usePendingChanges.getState().revertAll();
+  });
 
-  it('upsert creates a row entry on first edit', () => {
+  it("upsert creates a row entry on first edit", () => {
     usePendingChanges.getState().upsertEdit({
-      table: T, pkColumns: ['id'],
-      pkValues: [{ kind: 'Int', value: 1 } satisfies Cell],
-      column: 'name',
-      original: { kind: 'Text', value: 'old' },
-      next: { kind: 'Text', value: 'new' },
-      capturedRow: [{ kind: 'Int', value: 1 }, { kind: 'Text', value: 'old' }],
-      capturedColumns: ['id', 'name'],
+      table: T,
+      pkColumns: ["id"],
+      pkValues: [{ kind: "Int", value: 1 } satisfies Cell],
+      column: "name",
+      original: { kind: "Text", value: "old" },
+      next: { kind: "Text", value: "new" },
+      capturedRow: [
+        { kind: "Int", value: 1 },
+        { kind: "Text", value: "old" },
+      ],
+      capturedColumns: ["id", "name"],
     });
     expect(usePendingChanges.getState().count()).toBe(1);
   });
 
-  it('upsert on the same column overwrites', () => {
+  it("upsert on the same column overwrites", () => {
     const args = (next: string) => ({
-      table: T, pkColumns: ['id'],
-      pkValues: [{ kind: 'Int', value: 1 } as Cell],
-      column: 'name', original: { kind: 'Text', value: 'old' } as Cell,
-      next: { kind: 'Text', value: next } as Cell,
-      capturedRow: [{ kind: 'Int', value: 1 } as Cell, { kind: 'Text', value: 'old' } as Cell],
-      capturedColumns: ['id', 'name'],
+      table: T,
+      pkColumns: ["id"],
+      pkValues: [{ kind: "Int", value: 1 } as Cell],
+      column: "name",
+      original: { kind: "Text", value: "old" } as Cell,
+      next: { kind: "Text", value: next } as Cell,
+      capturedRow: [
+        { kind: "Int", value: 1 } as Cell,
+        { kind: "Text", value: "old" } as Cell,
+      ],
+      capturedColumns: ["id", "name"],
     });
-    usePendingChanges.getState().upsertEdit(args('a'));
-    usePendingChanges.getState().upsertEdit(args('b'));
+    usePendingChanges.getState().upsertEdit(args("a"));
+    usePendingChanges.getState().upsertEdit(args("b"));
     const list = usePendingChanges.getState().list();
     expect(list).toHaveLength(1);
     expect(list[0].edits).toHaveLength(1);
-    if (list[0].edits[0].next.kind === 'Text') {
-      expect(list[0].edits[0].next.value).toBe('b');
+    if (list[0].edits[0].next.kind === "Text") {
+      expect(list[0].edits[0].next.value).toBe("b");
     }
   });
 
-  it('revertRow drops the entry', () => {
+  it("revertRow drops the entry", () => {
     usePendingChanges.getState().upsertEdit({
-      table: T, pkColumns: ['id'],
-      pkValues: [{ kind: 'Int', value: 1 } as Cell],
-      column: 'name',
-      original: { kind: 'Text', value: 'a' }, next: { kind: 'Text', value: 'b' },
-      capturedRow: [{ kind: 'Int', value: 1 } as Cell, { kind: 'Text', value: 'a' } as Cell],
-      capturedColumns: ['id', 'name'],
+      table: T,
+      pkColumns: ["id"],
+      pkValues: [{ kind: "Int", value: 1 } as Cell],
+      column: "name",
+      original: { kind: "Text", value: "a" },
+      next: { kind: "Text", value: "b" },
+      capturedRow: [
+        { kind: "Int", value: 1 } as Cell,
+        { kind: "Text", value: "a" } as Cell,
+      ],
+      capturedColumns: ["id", "name"],
     });
-    const key = JSON.stringify([{ kind: 'Int', value: 1 }]);
+    const key = JSON.stringify([{ kind: "Int", value: 1 }]);
     usePendingChanges.getState().revertRow(key);
     expect(usePendingChanges.getState().count()).toBe(0);
   });
@@ -5685,23 +6407,31 @@ describe('pendingChanges store', () => {
 
 ```ts
 // src/lib/pgLiterals.test.ts
-import { describe, it, expect } from 'vitest';
-import { toLiteral } from './pgLiterals';
+import { describe, it, expect } from "vitest";
+import { toLiteral } from "./pgLiterals";
 
-describe('pgLiterals.toLiteral', () => {
-  it('renders Null', () => expect(toLiteral({ kind: 'Null' })).toBe('NULL'));
-  it('renders Bool', () => expect(toLiteral({ kind: 'Bool', value: true })).toBe('TRUE'));
-  it('renders Text with quote escape', () =>
-    expect(toLiteral({ kind: 'Text', value: "o'reilly" })).toBe("'o''reilly'"));
-  it('renders Uuid with cast', () =>
-    expect(toLiteral({ kind: 'Uuid', value: '550e8400-e29b-41d4-a716-446655440000' }))
-      .toBe("'550e8400-e29b-41d4-a716-446655440000'::uuid"));
-  it('renders Json with quote-escape', () =>
-    expect(toLiteral({ kind: 'Json', value: { k: "v's" } }))
-      .toBe(`'{"k":"v''s"}'::jsonb`));
-  it('renders Bytea hex form', () => {
+describe("pgLiterals.toLiteral", () => {
+  it("renders Null", () => expect(toLiteral({ kind: "Null" })).toBe("NULL"));
+  it("renders Bool", () =>
+    expect(toLiteral({ kind: "Bool", value: true })).toBe("TRUE"));
+  it("renders Text with quote escape", () =>
+    expect(toLiteral({ kind: "Text", value: "o'reilly" })).toBe("'o''reilly'"));
+  it("renders Uuid with cast", () =>
+    expect(
+      toLiteral({
+        kind: "Uuid",
+        value: "550e8400-e29b-41d4-a716-446655440000",
+      }),
+    ).toBe("'550e8400-e29b-41d4-a716-446655440000'::uuid"));
+  it("renders Json with quote-escape", () =>
+    expect(toLiteral({ kind: "Json", value: { k: "v's" } })).toBe(
+      `'{"k":"v''s"}'::jsonb`,
+    ));
+  it("renders Bytea hex form", () => {
     // base64 of [0xDE,0xAD,0xBE,0xEF] = "3q2+7w=="
-    expect(toLiteral({ kind: 'Bytea', value: { b64: '3q2+7w==' } })).toBe("'\\xdeadbeef'::bytea");
+    expect(toLiteral({ kind: "Bytea", value: { b64: "3q2+7w==" } })).toBe(
+      "'\\xdeadbeef'::bytea",
+    );
   });
 });
 ```
@@ -5770,4 +6500,3 @@ After all 24 tasks land, verify against the spec:
 - §6 Flow A/B/C/D: A in tasks 11–17, B in tasks 8–10 + 17, C in task 18, D in task 20.
 - §10 Decisions taken: each routed to its task — see decisions table in the spec for reference.
 - §11 Risks: golden tests in task 3 (Risk #1), parser fallback in task 4 (#2), tx indicator in task 10 (#3), strict NULL/float in task 16 (#4), preview footer in task 17 (#5), Drop rollback in task 8 (#6), LRU in task 5 (#7), 10k gate in task 6 (#8), LIKE index in task 7 (#9), Unknown fallback in task 3 (#10), token race in task 20 (#11).
-

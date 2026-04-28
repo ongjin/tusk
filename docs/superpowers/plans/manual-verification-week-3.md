@@ -83,14 +83,7 @@ For each widget, double-click a cell, change value, hit Enter, Submit, then veri
       The footer note about parameterized binds is visible.
 - [ ] **Submit** runs both → toast "2 row(s) updated". Pending badge clears.
 - [ ] **Revert** restores all pending edits visually (DB unchanged).
-- [ ] Conflict detection (Strict mode):
-      1. Toggle mode dropdown to `Strict`.
-      2. In a separate `psql` session, change `email` of row 1 to `'remote@x'`.
-      3. In Tusk, edit row 1 `email` to `'tusk@x'` → Submit.
-      4. ConflictModal appears: shows `your edit: tusk@x` vs `server now: remote@x`.
-      5. Verify atomic rollback: any other batch in the same Submit must NOT have applied.
-      6. Try **Force overwrite** → succeeds (since pkOnly bypasses captured-row check).
-      7. Re-run with **Re-edit on top of server** → captured row updated; subsequent Submit succeeds without conflict.
+- [ ] Conflict detection (Strict mode): 1. Toggle mode dropdown to `Strict`. 2. In a separate `psql` session, change `email` of row 1 to `'remote@x'`. 3. In Tusk, edit row 1 `email` to `'tusk@x'` → Submit. 4. ConflictModal appears: shows `your edit: tusk@x` vs `server now: remote@x`. 5. Verify atomic rollback: any other batch in the same Submit must NOT have applied. 6. Try **Force overwrite** → succeeds (since pkOnly bypasses captured-row check). 7. Re-run with **Re-edit on top of server** → captured row updated; subsequent Submit succeeds without conflict.
 - [ ] PkOnly mode: same scenario succeeds without the modal (last-writer-wins).
 
 ## D. INSERT / DELETE row (Task 19)
