@@ -16,6 +16,22 @@ export function ResultsHeader({ result, error, busy }: Props) {
           <span>{result.rowCount} rows</span>
           <span className="text-muted-foreground">·</span>
           <span>{result.durationMs} ms</span>
+          <span className="text-muted-foreground">·</span>
+          {result.meta.editable ? (
+            <span
+              title={`Editable — ${result.meta.table?.schema}.${result.meta.table?.name}`}
+              className="text-xs text-amber-500"
+            >
+              ✏️
+            </span>
+          ) : (
+            <span
+              title={`Read-only — ${result.meta.reason ?? "unknown"}`}
+              className="text-muted-foreground text-xs"
+            >
+              🔒
+            </span>
+          )}
         </>
       )}
       {!busy && !result && !error && (

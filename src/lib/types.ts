@@ -48,7 +48,7 @@ export interface QueryResult {
   rows: Cell[][];
   durationMs: number;
   rowCount: number;
-  meta?: ResultMeta;
+  meta: ResultMeta;
 }
 
 export interface TuskErrorPayload {
