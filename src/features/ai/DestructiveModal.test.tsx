@@ -61,4 +61,23 @@ describe("DestructiveModal", () => {
     fireEvent.click(screen.getByText("Run"));
     expect(await promise).toBe(true);
   });
+
+  it("back-to-back identical requests cancel the prior", async () => {
+    render(<DestructiveModalHost />);
+    const args = {
+      findings: [
+        { kind: "drop-table", statementIndex: 0, message: "...", affectedObject: "x" } as const,
+      ],
+      sql: "DROP TABLE x",
+      strict: true,
+    };
+    const first = confirmDestructive(args);
+    // Don't await — fire the second immediately.
+    const second = confirmDestructive(args);
+    expect(await first).toBe(false);
+    // Resolve the second one to clean up.
+    await screen.findByText(/Confirm destructive/);
+    fireEvent.click(screen.getByText("Cancel"));
+    expect(await second).toBe(false);
+  });
 });

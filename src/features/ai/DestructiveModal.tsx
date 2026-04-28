@@ -5,7 +5,10 @@ import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DestructiveFinding } from "@/lib/types";
 
+let nextId = 0;
+
 interface PendingRequest {
+  id: number;
   findings: DestructiveFinding[];
   sql: string;
   strict: boolean;
@@ -22,7 +25,7 @@ export function confirmDestructive(opts: {
 }): Promise<boolean> {
   return new Promise((resolve) => {
     if (pending) pending.resolve(false);
-    pending = { ...opts, resolve };
+    pending = { id: ++nextId, ...opts, resolve };
     listener?.(pending);
   });
 }
@@ -128,7 +131,7 @@ export function DestructiveModalHost() {
 
   if (!req) return null;
 
-  // Key on req object identity so DestructiveDialog remounts (and typed resets)
-  // each time a new request arrives.
-  return <DestructiveDialog key={req.sql + req.strict} req={req} onClose={close} />;
+  // Key on req.id (a monotonic nonce) so DestructiveDialog remounts (and typed resets)
+  // each time a new request arrives, even if sql/strict are identical.
+  return <DestructiveDialog key={req.id} req={req} onClose={close} />;
 }
