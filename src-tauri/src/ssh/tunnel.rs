@@ -108,6 +108,10 @@ pub async fn open_tunnel<R: Runtime>(
         if TcpStream::connect(("127.0.0.1", local_port)).await.is_ok() {
             let pid = handle.child.id();
 
+            // TODO(v1.5): the watcher fires on manual disconnect too, because
+            // TunnelHandle::drop kills the child and the next 500ms probe sees
+            // the PID gone. Pass an Arc<AtomicBool> shutdown flag from drop into
+            // the watcher and skip the emit when the kill was user-initiated.
             #[cfg(unix)]
             {
                 let app_for_task = app.clone();

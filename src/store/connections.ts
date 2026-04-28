@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { listen } from "@tauri-apps/api/event";
+import { toast } from "sonner";
 
 import {
   addConnection as addConnectionCmd,
@@ -68,6 +69,10 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
   },
 }));
 
+// NOTE: Vite HMR resets `subscribed` on module reload, so dev sessions
+// can accumulate duplicate listeners across hot reloads. Benign in
+// production; if it becomes annoying in dev, switch to a window-level
+// __TUSK_LOST_SUBSCRIBED__ guard.
 let subscribed = false;
 function ensureLostListener() {
   if (subscribed) return;
@@ -75,7 +80,7 @@ function ensureLostListener() {
   listen<string>("connection:lost", (e) => {
     const id = e.payload;
     useConnections.getState().refresh();
-    import("sonner").then(({ toast }) => toast.error(`Lost connection ${id}`));
+    toast.error(`Lost connection ${id}`);
   });
 }
 

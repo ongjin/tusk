@@ -36,7 +36,9 @@ function App() {
               step={100}
               className="border-input w-24 rounded border px-2 py-1"
               value={autoLimit}
-              onChange={(e) => setAutoLimit(Number(e.target.value) || 0)}
+              onChange={(e) =>
+                setAutoLimit(Math.max(0, Number(e.target.value) || 0))
+              }
             />
           </label>
           <p className="text-muted-foreground mt-1">
