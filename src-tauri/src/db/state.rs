@@ -155,6 +155,39 @@ impl StateStore {
             "#,
         )
         .map_err(|e| TuskError::State(e.to_string()))?;
+        db.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS schema_embedding (
+                id              TEXT PRIMARY KEY,
+                conn_id         TEXT NOT NULL,
+                schema_name     TEXT NOT NULL,
+                table_name      TEXT NOT NULL,
+                pg_relid        INTEGER NOT NULL,
+                ddl_checksum    TEXT NOT NULL,
+                embedding       BLOB NOT NULL,
+                embedding_dim   INTEGER NOT NULL,
+                embedding_model TEXT NOT NULL,
+                embedded_at     INTEGER NOT NULL,
+                UNIQUE (conn_id, schema_name, table_name)
+            );
+            CREATE INDEX IF NOT EXISTS idx_schema_embedding_conn
+                ON schema_embedding(conn_id);
+
+            CREATE TABLE IF NOT EXISTS ai_history (
+                entry_id          TEXT PRIMARY KEY REFERENCES history_entry(id) ON DELETE CASCADE,
+                provider          TEXT NOT NULL,
+                generation_model  TEXT NOT NULL,
+                embedding_model   TEXT,
+                prompt            TEXT NOT NULL,
+                generated_sql     TEXT NOT NULL,
+                top_k_tables      TEXT NOT NULL,
+                tool_calls        TEXT,
+                prompt_tokens     INTEGER,
+                completion_tokens INTEGER
+            );
+            "#,
+        )
+        .map_err(|e| TuskError::State(e.to_string()))?;
         Ok(())
     }
 
