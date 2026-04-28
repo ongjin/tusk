@@ -2,7 +2,7 @@
 use std::time::Instant;
 
 use serde::Serialize;
-use tauri::State;
+use tauri::{Emitter, State};
 
 use crate::commands::sqlast::{parse_select_target, NotEditableReason, ParsedSelect};
 use crate::db::decoder::{columns_of, decode_row, Cell, ColumnMeta};
@@ -52,6 +52,7 @@ pub struct ColumnTypeMeta {
 
 #[tauri::command]
 pub async fn execute_query(
+    app_handle: tauri::AppHandle,
     registry: State<'_, ConnectionRegistry>,
     meta_cache: State<'_, MetaCache>,
     store: State<'_, StateStore>,
@@ -68,11 +69,20 @@ pub async fn execute_query(
     let mut slot_guard = active.tx_slot.lock().await;
     let in_tx = slot_guard.is_some();
 
-    let result = if in_tx {
+    let (result, emitted_pid) = if in_tx {
         let sticky = slot_guard.as_mut().expect("checked");
         sticky.statement_count += 1;
         let ordinal = (sticky.statement_count.saturating_sub(1)) as i64;
         let entry_id = sticky.history_entry_id.clone();
+        let pid = sticky.backend_pid;
+        let _ = app_handle.emit(
+            "query:started",
+            serde_json::json!({
+                "connId": connection_id,
+                "pid": pid,
+                "startedAt": chrono::Utc::now().timestamp_millis(),
+            }),
+        );
         let r = sqlx::query(&sql).fetch_all(&mut *sticky.conn).await;
         let duration_ms = started.elapsed().as_millis();
         let stmt = HistoryStatement {
@@ -89,11 +99,33 @@ pub async fn execute_query(
             eprintln!("failed to append tx history statement: {history_err}");
         }
         // slot_guard drops at end of branch.
-        r
+        (r, pid)
     } else {
         // Drop the slot lock before pool work — the pool path doesn't need it.
         drop(slot_guard);
-        let r = sqlx::query(&sql).fetch_all(&active.pool).await;
+        // Acquire a connection first so the pid we emit corresponds to the
+        // session that actually runs the user's query (cancellation needs the
+        // *exact* backend pid, not any pooled connection's pid).
+        let mut conn = active
+            .pool
+            .acquire()
+            .await
+            .map_err(|e| TuskError::Query(e.to_string()))?;
+        let pid: i32 = sqlx::query_scalar("SELECT pg_backend_pid()")
+            .fetch_one(&mut *conn)
+            .await
+            .unwrap_or(-1);
+        let _ = app_handle.emit(
+            "query:started",
+            serde_json::json!({
+                "connId": connection_id,
+                "pid": pid,
+                "startedAt": chrono::Utc::now().timestamp_millis(),
+            }),
+        );
+        let r = sqlx::query(&sql).fetch_all(&mut *conn).await;
+        // Drop conn back to the pool before history work.
+        drop(conn);
         let duration_ms = started.elapsed().as_millis();
         let preview: String = sql.chars().take(200).collect();
         let (status, err_msg, rc): (&str, Option<String>, Option<i64>) = match &r {
@@ -117,8 +149,19 @@ pub async fn execute_query(
         }) {
             eprintln!("failed to record history entry: {history_err}");
         }
-        r
+        (r, pid)
     };
+
+    // Always notify the frontend that the query is no longer running, even on
+    // error — otherwise the "Running query…" toast would linger forever.
+    let _ = app_handle.emit(
+        "query:completed",
+        serde_json::json!({
+            "connId": connection_id,
+            "pid": emitted_pid,
+            "ok": result.is_ok(),
+        }),
+    );
 
     let duration_ms = started.elapsed().as_millis();
     let rows = result.map_err(|e| TuskError::Query(e.to_string()))?;

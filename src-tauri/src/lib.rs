@@ -44,6 +44,7 @@ pub fn run() {
             commands::fk_lookup::fk_lookup,
             commands::editing::preview_pending_changes,
             commands::editing::submit_pending_changes,
+            commands::cancel::cancel_query,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,5 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { Moon, Sun } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { toast } from "sonner";
 
@@ -100,6 +102,80 @@ function App() {
     return () => {
       cancelled = true;
       if (unlisten) unlisten();
+    };
+  }, []);
+
+  // Running-query toast with a Cancel action. We delay the toast 500ms so
+  // fast queries don't flash a toast at all. The toast is dismissed when
+  // either `query:completed` fires, the next `query:started` arrives, or
+  // the component unmounts.
+  useEffect(() => {
+    interface QueryStartedPayload {
+      connId: string;
+      pid: number;
+      startedAt: number;
+    }
+    interface QueryCompletedPayload {
+      connId: string;
+      pid: number;
+      ok: boolean;
+    }
+
+    let cancelled = false;
+    let unlistenStart: (() => void) | null = null;
+    let unlistenDone: (() => void) | null = null;
+    let toastTimer: ReturnType<typeof setTimeout> | null = null;
+    let toastId: string | number | null = null;
+
+    const clearActive = () => {
+      if (toastTimer) {
+        clearTimeout(toastTimer);
+        toastTimer = null;
+      }
+      if (toastId !== null) {
+        toast.dismiss(toastId);
+        toastId = null;
+      }
+    };
+
+    void listen<QueryStartedPayload>("query:started", (ev) => {
+      clearActive();
+      const { connId, pid } = ev.payload;
+      toastTimer = setTimeout(() => {
+        toastTimer = null;
+        toastId = toast("Running query...", {
+          action: {
+            label: "Cancel",
+            onClick: () => {
+              void invoke("cancel_query", {
+                connectionId: connId,
+                pid,
+              }).catch((e: unknown) => {
+                const msg = e instanceof Error ? e.message : String(e);
+                toast.error(`Cancel failed: ${msg}`);
+              });
+            },
+          },
+          duration: Number.POSITIVE_INFINITY,
+        });
+      }, 500);
+    }).then((fn) => {
+      if (cancelled) fn();
+      else unlistenStart = fn;
+    });
+
+    void listen<QueryCompletedPayload>("query:completed", () => {
+      clearActive();
+    }).then((fn) => {
+      if (cancelled) fn();
+      else unlistenDone = fn;
+    });
+
+    return () => {
+      cancelled = true;
+      if (unlistenStart) unlistenStart();
+      if (unlistenDone) unlistenDone();
+      clearActive();
     };
   }, []);
 
