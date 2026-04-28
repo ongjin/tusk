@@ -4,6 +4,7 @@ mod commands;
 pub mod db;
 pub mod errors;
 pub mod secrets;
+pub mod ssh;
 
 use crate::db::pool::ConnectionRegistry;
 use crate::db::state::StateStore;
@@ -29,6 +30,7 @@ pub fn run() {
             commands::connections::connect,
             commands::connections::disconnect,
             commands::query::execute_query,
+            commands::ssh::list_known_ssh_hosts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
