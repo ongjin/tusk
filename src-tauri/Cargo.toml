@@ -29,6 +29,7 @@ keyring = "3"
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 tokio = { version = "1", features = ["full"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
 
 [lints.rust]
 unsafe_code = "forbid"
