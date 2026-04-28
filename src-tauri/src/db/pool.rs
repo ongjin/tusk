@@ -62,6 +62,12 @@ impl ConnectionRegistry {
         Ok(())
     }
 
+    /// Builds a pool against an already-open SSH local-forward.
+    ///
+    /// `spec.host` and `spec.port` are **ignored** — connections always go
+    /// through `127.0.0.1:tunnel.local_port`. The caller still has to pass
+    /// the original Postgres `user`/`password`/`database`/`ssl_mode` though,
+    /// since those land in the connection string unchanged.
     pub async fn connect_tunneled(
         &self,
         connection_id: &str,

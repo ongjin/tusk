@@ -94,7 +94,7 @@ pub async fn open_tunnel(spec: TunnelSpec) -> TuskResult<TunnelHandle> {
         .spawn()
         .map_err(|e| TuskError::Tunnel(format!("ssh spawn failed: {e}")))?;
 
-    let handle = TunnelHandle { child, local_port };
+    let mut handle = TunnelHandle { child, local_port };
 
     // Poll until the forwarded port accepts TCP, or we time out.
     let started = Instant::now();
@@ -104,10 +104,25 @@ pub async fn open_tunnel(spec: TunnelSpec) -> TuskResult<TunnelHandle> {
             return Ok(handle);
         }
         if started.elapsed() >= timeout {
-            return Err(TuskError::Tunnel(format!(
-                "tunnel readiness timed out after {}s",
-                timeout.as_secs()
-            )));
+            let stderr_msg = handle
+                .child
+                .stderr
+                .take()
+                .and_then(|mut r| {
+                    use std::io::Read;
+                    let mut s = String::new();
+                    r.read_to_string(&mut s).ok().map(|_| s)
+                })
+                .unwrap_or_default();
+            let trimmed = stderr_msg.trim();
+            return Err(TuskError::Tunnel(if trimmed.is_empty() {
+                format!("tunnel readiness timed out after {}s", timeout.as_secs())
+            } else {
+                format!(
+                    "tunnel readiness timed out after {}s: {trimmed}",
+                    timeout.as_secs(),
+                )
+            }));
         }
         sleep(Duration::from_millis(50)).await;
     }
