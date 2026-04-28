@@ -15,6 +15,7 @@ import { TxIndicator } from "@/features/transactions/TxIndicator";
 import { TxSidePanel } from "@/features/transactions/TxSidePanel";
 import { Button } from "@/components/ui/button";
 import { ConfirmModalHost, openConfirmModal } from "@/lib/confirm";
+import { DestructiveModalHost } from "@/features/ai/DestructiveModal";
 import { SettingsDialog } from "@/features/settings/SettingsDialog";
 import { useTheme } from "@/hooks/use-theme";
 import { aiSecretListPresent } from "@/lib/keychain";
@@ -212,6 +213,7 @@ function App() {
   return (
     <div className="bg-background text-foreground grid h-full grid-cols-[280px_1fr]">
       <ConfirmModalHost />
+      <DestructiveModalHost />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       {showPalette && (
         <HistoryPalette
