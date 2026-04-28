@@ -9,6 +9,7 @@ export function BigintWidget({
   onCommit,
   onCancel,
 }: WidgetProps) {
+  const isNull = initial.kind === "Null";
   const [val, setVal] = useState(
     initial.kind === "Bigint" ? initial.value : "",
   );
@@ -38,6 +39,7 @@ export function BigintWidget({
       <div className="flex items-center gap-1">
         <input
           autoFocus
+          placeholder={isNull ? "(was NULL — type to overwrite)" : undefined}
           value={val}
           onChange={(e) => {
             setVal(e.target.value);

@@ -9,6 +9,7 @@ export function NumericWidget({
   onCommit,
   onCancel,
 }: WidgetProps) {
+  const isNull = initial.kind === "Null";
   const [val, setVal] = useState(
     initial.kind === "Numeric" ? initial.value : "",
   );
@@ -27,6 +28,7 @@ export function NumericWidget({
       <div className="flex items-center gap-1">
         <input
           autoFocus
+          placeholder={isNull ? "(was NULL — type to overwrite)" : undefined}
           value={val}
           onChange={(e) => {
             setVal(e.target.value);

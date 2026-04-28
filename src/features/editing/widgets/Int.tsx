@@ -9,6 +9,7 @@ export function IntWidget({
   onCommit,
   onCancel,
 }: WidgetProps) {
+  const isNull = initial.kind === "Null";
   const [val, setVal] = useState(
     initial.kind === "Int" ? String(initial.value) : "",
   );
@@ -32,6 +33,7 @@ export function IntWidget({
       <div className="flex items-center gap-1">
         <input
           autoFocus
+          placeholder={isNull ? "(was NULL — type to overwrite)" : undefined}
           value={val}
           onChange={(e) => {
             setVal(e.target.value);

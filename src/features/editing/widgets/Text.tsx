@@ -9,6 +9,7 @@ export function TextWidget({
   onCommit,
   onCancel,
 }: WidgetProps) {
+  const isNull = initial.kind === "Null";
   const [val, setVal] = useState(
     initial.kind === "Null" ? "" : initial.kind === "Text" ? initial.value : "",
   );
@@ -22,6 +23,7 @@ export function TextWidget({
       {multiline ? (
         <textarea
           autoFocus
+          placeholder={isNull ? "(was NULL — type to overwrite)" : undefined}
           value={val}
           onChange={(e) => setVal(e.target.value)}
           onKeyDown={(e) => {
@@ -39,6 +41,7 @@ export function TextWidget({
       ) : (
         <input
           autoFocus
+          placeholder={isNull ? "(was NULL — type to overwrite)" : undefined}
           value={val}
           onChange={(e) => setVal(e.target.value)}
           onKeyDown={(e) => {
