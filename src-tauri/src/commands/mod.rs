@@ -1,6 +1,7 @@
 pub mod ai_secrets;
 pub mod cancel;
 pub mod connections;
+pub mod destructive;
 pub mod editing;
 pub mod export;
 pub mod fk_lookup;
