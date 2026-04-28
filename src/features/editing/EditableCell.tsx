@@ -8,10 +8,14 @@ import { pkValuesOf, usePendingChanges } from "@/store/pendingChanges";
 import { cellAsString } from "./cellSerde";
 import { BigintWidget } from "./widgets/Bigint";
 import { BoolWidget } from "./widgets/Bool";
+import { DateWidget } from "./widgets/Date";
 import { IntWidget } from "./widgets/Int";
 import { NumericWidget } from "./widgets/Numeric";
 import { TextWidget } from "./widgets/Text";
+import { TimeWidget } from "./widgets/Time";
+import { TimestampWidget } from "./widgets/Timestamp";
 import type { WidgetProps } from "./widgets/types";
+import { UuidWidget } from "./widgets/Uuid";
 
 interface Props {
   value: Cell;
@@ -31,6 +35,18 @@ function renderWidget(typeName: string, props: WidgetProps) {
       return <NumericWidget {...props} />;
     case "bool":
       return <BoolWidget {...props} />;
+    case "date":
+      return <DateWidget {...props} />;
+    case "time":
+      return <TimeWidget {...props} kind="Time" />;
+    case "timetz":
+      return <TimeWidget {...props} kind="Timetz" />;
+    case "timestamp":
+      return <TimestampWidget {...props} kind="Timestamp" />;
+    case "timestamptz":
+      return <TimestampWidget {...props} kind="Timestamptz" />;
+    case "uuid":
+      return <UuidWidget {...props} />;
     case "text":
     case "varchar":
     case "bpchar":
