@@ -20,6 +20,7 @@ pub fn run() {
                 StateStore::open(app_data.join("tusk.db")).expect("failed to open state store");
             app.manage(store);
             app.manage(ConnectionRegistry::new());
+            app.manage(crate::db::pg_meta::MetaCache::new());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

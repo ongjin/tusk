@@ -2,6 +2,7 @@
 use serde::Serialize;
 use tauri::State;
 
+use crate::db::pg_meta::MetaCache;
 use crate::db::pool::{ConnectionRegistry, DirectConnectSpec};
 use crate::db::state::{ConnectionRecord, NewConnection, SshKind, StateStore};
 use crate::errors::{TuskError, TuskResult};
@@ -155,6 +156,12 @@ pub async fn connect(
 }
 
 #[tauri::command]
-pub async fn disconnect(registry: State<'_, ConnectionRegistry>, id: String) -> TuskResult<()> {
-    registry.disconnect(&id)
+pub async fn disconnect(
+    registry: State<'_, ConnectionRegistry>,
+    meta_cache: State<'_, MetaCache>,
+    id: String,
+) -> TuskResult<()> {
+    registry.disconnect(&id)?;
+    meta_cache.invalidate_conn(&id);
+    Ok(())
 }
