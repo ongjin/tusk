@@ -1,3 +1,4 @@
+pub mod ai_secrets;
 pub mod cancel;
 pub mod connections;
 pub mod editing;

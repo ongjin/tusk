@@ -48,6 +48,10 @@ pub fn run() {
             commands::editing::submit_pending_changes,
             commands::cancel::cancel_query,
             commands::export::export_result,
+            commands::ai_secrets::ai_secret_set,
+            commands::ai_secrets::ai_secret_get,
+            commands::ai_secrets::ai_secret_delete,
+            commands::ai_secrets::ai_secret_list_present,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
