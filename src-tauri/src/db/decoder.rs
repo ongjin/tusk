@@ -5,11 +5,11 @@
 // `Cell` variant; unknown OIDs fall through to `Cell::Unknown { oid, text }`
 // with a best-effort utf8 of the raw bytes.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgRow;
 use sqlx::{Column, Row, ValueRef};
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "kind", content = "value")]
 pub enum Cell {
     Null,

@@ -1,6 +1,6 @@
 use tauri::Manager;
 
-mod commands;
+pub mod commands;
 pub mod db;
 pub mod errors;
 pub mod secrets;
