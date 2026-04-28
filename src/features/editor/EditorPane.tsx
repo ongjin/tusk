@@ -30,7 +30,7 @@ export function EditorPane() {
   const activeConnection = useConnections((s) => s.activeId);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
 
-  const activeTab = tabs.find((t) => t.id === activeId)!;
+  const activeTab = tabs.find((t) => t.id === activeId) ?? tabs[0];
   const connectionForTab = activeTab.connectionId ?? activeConnection;
   const connectionName = useConnections(
     (s) =>

@@ -79,7 +79,11 @@ function ensureLostListener() {
   subscribed = true;
   listen<string>("connection:lost", (e) => {
     const id = e.payload;
-    useConnections.getState().refresh();
+    const state = useConnections.getState();
+    if (state.activeId === id) {
+      state.setActive(null);
+    }
+    state.refresh();
     toast.error(`Lost connection ${id}`);
   });
 }

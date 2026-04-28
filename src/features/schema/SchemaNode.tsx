@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -20,9 +20,12 @@ export function SchemaNode({
 }: Props) {
   const [open, setOpen] = useState(!!initiallyOpen);
 
-  useEffect(() => {
-    if (open) onExpand?.();
-  }, [open, onExpand]);
+  function toggle() {
+    setOpen((prev) => {
+      if (!prev) onExpand?.();
+      return !prev;
+    });
+  }
 
   return (
     <div>
@@ -32,7 +35,7 @@ export function SchemaNode({
           "hover:bg-accent flex w-full items-center gap-1 rounded px-1 py-0.5 text-left text-sm",
         )}
         style={{ paddingLeft: 4 + indent * 12 }}
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
       >
         {open ? (
           <ChevronDown className="size-3.5" />
