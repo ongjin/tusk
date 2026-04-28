@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { cellsEqual } from "@/features/editing/cellSerde";
 import type { Cell, PendingChange, ResultMeta } from "@/lib/types";
 
 interface UpsertEditArgs {
@@ -25,47 +26,51 @@ interface PendingChangesStore {
 export const usePendingChanges = create<PendingChangesStore>((set, get) => ({
   byRow: new Map(),
   upsertEdit(args) {
-    const rowKey = JSON.stringify(args.pkValues);
-    set((state) => {
-      const next = new Map(state.byRow);
+    set((s) => {
+      const next = new Map(s.byRow);
+      const rowKey = JSON.stringify(args.pkValues);
       const existing = next.get(rowKey);
-      if (existing) {
-        const editIdx = existing.edits.findIndex(
-          (e) => e.column === args.column,
-        );
-        const updatedEdits =
-          editIdx >= 0
-            ? existing.edits.map((e, i) =>
-                i === editIdx ? { ...e, next: args.next } : e,
-              )
-            : [
-                ...existing.edits,
-                {
-                  column: args.column,
-                  original: args.original,
-                  next: args.next,
-                },
-              ];
-        next.set(rowKey, { ...existing, edits: updatedEdits });
-      } else {
-        const change: PendingChange = {
-          rowKey,
-          table: args.table,
-          pk: { columns: args.pkColumns, values: args.pkValues },
-          edits: [
-            {
-              column: args.column,
-              original: args.original,
-              next: args.next,
-            },
-          ],
-          op: "update",
-          capturedRow: args.capturedRow,
-          capturedColumns: args.capturedColumns,
-          capturedAt: Date.now(),
-        };
-        next.set(rowKey, change);
+      // capturedRow/capturedColumns are snapshot-at-first-edit semantics:
+      // optimistic-concurrency relies on the row state when the user started
+      // editing, not the latest server state. We deliberately don't refresh
+      // these on subsequent edits to the same row.
+      const change: PendingChange = existing ?? {
+        rowKey,
+        table: args.table,
+        pk: { columns: args.pkColumns, values: args.pkValues },
+        edits: [],
+        op: "update",
+        capturedRow: args.capturedRow,
+        capturedColumns: args.capturedColumns,
+        capturedAt: Date.now(),
+      };
+      const idx = change.edits.findIndex((e) => e.column === args.column);
+
+      // If new value equals original, remove this column's edit (no-op).
+      if (cellsEqual(args.next, args.original)) {
+        if (idx >= 0) {
+          change.edits.splice(idx, 1);
+        }
+        // If no edits remain on this row, drop it from the map.
+        if (change.edits.length === 0) {
+          next.delete(rowKey);
+        } else {
+          next.set(rowKey, change);
+        }
+        return { byRow: next };
       }
+
+      const editEntry = {
+        column: args.column,
+        original: args.original,
+        next: args.next,
+      };
+      if (idx >= 0) {
+        change.edits[idx] = editEntry;
+      } else {
+        change.edits.push(editEntry);
+      }
+      next.set(rowKey, change);
       return { byRow: next };
     });
   },
