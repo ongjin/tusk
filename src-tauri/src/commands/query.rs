@@ -71,6 +71,14 @@ pub async fn execute_query(
 fn decode_cell(row: &sqlx::postgres::PgRow, idx: usize) -> serde_json::Value {
     use sqlx::ValueRef;
 
+    // Best-effort decoder for v1. Known limitations:
+    //   * sqlx widens i32/i16/i8 into Option<i64> via type compatibility,
+    //     so small-int columns serialize as JSON numbers (acceptable).
+    //   * numeric/decimal/uuid/inet/bytea fall through every arm and end up
+    //     as the sentinel string "<unsupported type>". The frontend must
+    //     not treat that string as a real value.
+    // Replace with a typed-by-PG-OID dispatch when one of those types becomes
+    // load-bearing for a feature.
     if let Ok(v) = row.try_get::<Option<bool>, _>(idx) {
         return serde_json::to_value(v).unwrap_or(serde_json::Value::Null);
     }

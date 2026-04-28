@@ -40,7 +40,12 @@ pub async fn add_connection(
     password: String,
 ) -> TuskResult<ConnectionRecord> {
     let record = store.insert(new)?;
-    secrets::set_password(&record.id, &password)?;
+    if let Err(e) = secrets::set_password(&record.id, &password) {
+        // Best-effort rollback so the user doesn't end up with an
+        // orphaned record that can never authenticate.
+        let _ = store.delete(&record.id);
+        return Err(e);
+    }
     Ok(record)
 }
 
