@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Settings as SettingsIcon, Sun } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -15,6 +15,7 @@ import { TxIndicator } from "@/features/transactions/TxIndicator";
 import { TxSidePanel } from "@/features/transactions/TxSidePanel";
 import { Button } from "@/components/ui/button";
 import { ConfirmModalHost, openConfirmModal } from "@/lib/confirm";
+import { SettingsDialog } from "@/features/settings/SettingsDialog";
 import { useTheme } from "@/hooks/use-theme";
 import { aiSecretListPresent } from "@/lib/keychain";
 import { useAi } from "@/store/ai";
@@ -39,6 +40,7 @@ function App() {
   // Cmd/Ctrl+P toggles the history palette (browser default is "print" —
   // preventDefault is required).
   const [showPalette, setShowPalette] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
@@ -210,6 +212,7 @@ function App() {
   return (
     <div className="bg-background text-foreground grid h-full grid-cols-[280px_1fr]">
       <ConfirmModalHost />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       {showPalette && (
         <HistoryPalette
           onClose={() => setShowPalette(false)}
@@ -223,6 +226,13 @@ function App() {
       <aside className="border-border flex flex-col border-r">
         <div className="flex items-center justify-between p-3">
           <h1 className="text-lg font-semibold">Tusk</h1>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <SettingsIcon />
+          </Button>
           <Button variant="ghost" size="icon-sm" onClick={toggle}>
             {theme === "light" ? <Moon /> : <Sun />}
           </Button>
