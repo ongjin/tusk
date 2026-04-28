@@ -23,11 +23,11 @@ pub async fn tx_begin(
     connection_id: String,
 ) -> TuskResult<TxStateSnapshot> {
     let active = registry.handle(&connection_id)?;
-    {
-        let slot = active.tx_slot.lock().expect("tx slot poisoned");
-        if slot.is_some() {
-            return Err(TuskError::Tx("transaction already active".into()));
-        }
+    // Hold the slot lock across the whole begin flow so concurrent calls
+    // can't both run BEGIN and clobber each other.
+    let mut slot = active.tx_slot.lock().await;
+    if slot.is_some() {
+        return Err(TuskError::Tx("transaction already active".into()));
     }
     let mut conn = active
         .pool
@@ -59,18 +59,14 @@ pub async fn tx_begin(
         error_message: None,
         statement_count: 0,
     })?;
-    let sticky = StickyTx {
+    *slot = Some(StickyTx {
         tx_id: tx_id.clone(),
         conn,
         started_at: std::time::Instant::now(),
         backend_pid: pid,
         statement_count: 0,
         history_entry_id: entry_id,
-    };
-    {
-        let mut slot = active.tx_slot.lock().expect("tx slot poisoned");
-        *slot = Some(sticky);
-    }
+    });
     Ok(TxStateSnapshot {
         conn_id: connection_id,
         active: true,
@@ -108,7 +104,7 @@ async fn finalize_tx(
 ) -> TuskResult<TxStateSnapshot> {
     let active = registry.handle(connection_id)?;
     let mut sticky = {
-        let mut slot = active.tx_slot.lock().expect("tx slot poisoned");
+        let mut slot = active.tx_slot.lock().await;
         slot.take()
             .ok_or_else(|| TuskError::Tx("no active transaction".into()))?
     };

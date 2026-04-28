@@ -8,7 +8,7 @@ use crate::commands::sqlast::{parse_select_target, NotEditableReason, ParsedSele
 use crate::db::decoder::{columns_of, decode_row, Cell, ColumnMeta};
 use crate::db::pg_meta::{fetch_table_meta, FkRef, MetaCache};
 use crate::db::pool::ConnectionRegistry;
-use crate::db::state::{HistoryEntry, StateStore};
+use crate::db::state::{HistoryEntry, HistoryStatement, StateStore};
 use crate::errors::{TuskError, TuskResult};
 
 #[derive(Debug, Serialize)]
@@ -58,34 +58,69 @@ pub async fn execute_query(
     connection_id: String,
     sql: String,
 ) -> TuskResult<QueryResult> {
-    let pool = registry.pool(&connection_id)?;
+    let active = registry.handle(&connection_id)?;
     let started = Instant::now();
-    let result = sqlx::query(&sql).fetch_all(&pool).await;
-    let duration_ms = started.elapsed().as_millis();
-    let preview: String = sql.chars().take(200).collect();
 
-    let (status, err_msg, rc): (&str, Option<String>, Option<i64>) = match &result {
-        Ok(rows) => ("ok", None, Some(rows.len() as i64)),
-        Err(e) => ("error", Some(e.to_string()), None),
+    // Decide tx-vs-pool path. Acquire the slot lock first; on the tx path we
+    // hold it across the sqlx execute (safe with tokio Mutex) and across the
+    // history append. On the pool path we drop the lock before pool work so
+    // we don't block concurrent commands.
+    let mut slot_guard = active.tx_slot.lock().await;
+    let in_tx = slot_guard.is_some();
+
+    let result = if in_tx {
+        let sticky = slot_guard.as_mut().expect("checked");
+        sticky.statement_count += 1;
+        let ordinal = (sticky.statement_count.saturating_sub(1)) as i64;
+        let entry_id = sticky.history_entry_id.clone();
+        let r = sqlx::query(&sql).fetch_all(&mut *sticky.conn).await;
+        let duration_ms = started.elapsed().as_millis();
+        let stmt = HistoryStatement {
+            id: uuid::Uuid::new_v4().to_string(),
+            entry_id,
+            ordinal,
+            sql: sql.chars().take(2000).collect(),
+            duration_ms: duration_ms as i64,
+            row_count: r.as_ref().ok().map(|rows| rows.len() as i64),
+            status: if r.is_ok() { "ok" } else { "error" }.into(),
+            error_message: r.as_ref().err().map(|e| e.to_string()),
+        };
+        if let Err(history_err) = store.append_history_statement(&stmt) {
+            eprintln!("failed to append tx history statement: {history_err}");
+        }
+        // slot_guard drops at end of branch.
+        r
+    } else {
+        // Drop the slot lock before pool work — the pool path doesn't need it.
+        drop(slot_guard);
+        let r = sqlx::query(&sql).fetch_all(&active.pool).await;
+        let duration_ms = started.elapsed().as_millis();
+        let preview: String = sql.chars().take(200).collect();
+        let (status, err_msg, rc): (&str, Option<String>, Option<i64>) = match &r {
+            Ok(rows) => ("ok", None, Some(rows.len() as i64)),
+            Err(e) => ("error", Some(e.to_string()), None),
+        };
+        let entry_id = uuid::Uuid::new_v4().to_string();
+        if let Err(history_err) = store.insert_history_entry(&HistoryEntry {
+            id: entry_id,
+            conn_id: connection_id.clone(),
+            source: "editor".into(),
+            tx_id: None,
+            sql_preview: preview,
+            sql_full: Some(sql.clone()),
+            started_at: chrono::Utc::now().timestamp_millis(),
+            duration_ms: duration_ms as i64,
+            row_count: rc,
+            status: status.into(),
+            error_message: err_msg,
+            statement_count: 1,
+        }) {
+            eprintln!("failed to record history entry: {history_err}");
+        }
+        r
     };
-    let entry_id = uuid::Uuid::new_v4().to_string();
-    if let Err(history_err) = store.insert_history_entry(&HistoryEntry {
-        id: entry_id,
-        conn_id: connection_id.clone(),
-        source: "editor".into(),
-        tx_id: None,
-        sql_preview: preview,
-        sql_full: Some(sql.clone()),
-        started_at: chrono::Utc::now().timestamp_millis(),
-        duration_ms: duration_ms as i64,
-        row_count: rc,
-        status: status.into(),
-        error_message: err_msg,
-        statement_count: 1,
-    }) {
-        eprintln!("failed to record history entry: {history_err}");
-    }
 
+    let duration_ms = started.elapsed().as_millis();
     let rows = result.map_err(|e| TuskError::Query(e.to_string()))?;
     let columns = rows.first().map(columns_of).unwrap_or_default();
     let row_count = rows.len();
@@ -95,7 +130,7 @@ pub async fn execute_query(
     }
 
     let meta = build_meta(
-        &pool,
+        &active.pool,
         meta_cache.inner(),
         &connection_id,
         &sql,

@@ -9,6 +9,7 @@ use sqlx::pool::PoolConnection;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions, PgSslMode};
 use sqlx::PgPool;
 use sqlx::Postgres;
+use tokio::sync::Mutex as AsyncMutex;
 
 use crate::errors::{TuskError, TuskResult};
 use crate::ssh::tunnel::TunnelHandle;
@@ -35,7 +36,7 @@ pub struct StickyTx {
 pub struct ActiveConnection {
     pub pool: PgPool,
     pub tunnel: Option<TunnelHandle>,
-    pub tx_slot: Mutex<Option<StickyTx>>,
+    pub tx_slot: AsyncMutex<Option<StickyTx>>,
 }
 
 #[derive(Default)]
@@ -74,7 +75,7 @@ impl ConnectionRegistry {
             Arc::new(ActiveConnection {
                 pool,
                 tunnel: None,
-                tx_slot: Mutex::new(None),
+                tx_slot: AsyncMutex::new(None),
             }),
         );
         Ok(())
@@ -118,7 +119,7 @@ impl ConnectionRegistry {
             Arc::new(ActiveConnection {
                 pool,
                 tunnel: Some(tunnel),
-                tx_slot: Mutex::new(None),
+                tx_slot: AsyncMutex::new(None),
             }),
         );
         Ok(())
@@ -132,15 +133,22 @@ impl ConnectionRegistry {
         if let Some(active) = active {
             // Take the sticky tx out (if any) so we can rollback.
             let sticky_opt = {
-                let mut slot = active.tx_slot.lock().expect("tx slot poisoned");
+                let mut slot = active.tx_slot.lock().await;
                 slot.take()
             };
             if let Some(mut sticky) = sticky_opt {
-                let _ = tokio::time::timeout(
+                match tokio::time::timeout(
                     std::time::Duration::from_secs(1),
                     sqlx::query("ROLLBACK").execute(&mut *sticky.conn),
                 )
-                .await;
+                .await
+                {
+                    Ok(Ok(_)) => {}
+                    Ok(Err(e)) => {
+                        eprintln!("disconnect: ROLLBACK failed for tx {}: {e}", sticky.tx_id)
+                    }
+                    Err(_) => eprintln!("disconnect: ROLLBACK timed out for tx {}", sticky.tx_id),
+                }
             }
             // active drops, pool drops, tunnel drops naturally.
         }
