@@ -1,10 +1,15 @@
 // src-tauri/src/db/pool.rs
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
+use std::time::Instant;
 
+use sqlx::pool::PoolConnection;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions, PgSslMode};
 use sqlx::PgPool;
+use sqlx::Postgres;
+use tokio::sync::Mutex as AsyncMutex;
 
 use crate::errors::{TuskError, TuskResult};
 use crate::ssh::tunnel::TunnelHandle;
@@ -19,14 +24,24 @@ pub struct DirectConnectSpec {
     pub ssl_mode: String,
 }
 
+pub struct StickyTx {
+    pub tx_id: String,
+    pub conn: PoolConnection<Postgres>,
+    pub started_at: Instant,
+    pub backend_pid: i32,
+    pub statement_count: u32,
+    pub history_entry_id: String,
+}
+
 pub struct ActiveConnection {
     pub pool: PgPool,
     pub tunnel: Option<TunnelHandle>,
+    pub tx_slot: AsyncMutex<Option<StickyTx>>,
 }
 
 #[derive(Default)]
 pub struct ConnectionRegistry {
-    inner: Mutex<HashMap<String, ActiveConnection>>,
+    inner: Mutex<HashMap<String, Arc<ActiveConnection>>>,
 }
 
 impl ConnectionRegistry {
@@ -57,7 +72,11 @@ impl ConnectionRegistry {
         let mut guard = self.inner.lock().expect("registry poisoned");
         guard.insert(
             connection_id.to_string(),
-            ActiveConnection { pool, tunnel: None },
+            Arc::new(ActiveConnection {
+                pool,
+                tunnel: None,
+                tx_slot: AsyncMutex::new(None),
+            }),
         );
         Ok(())
     }
@@ -97,18 +116,51 @@ impl ConnectionRegistry {
         let mut guard = self.inner.lock().expect("registry poisoned");
         guard.insert(
             connection_id.to_string(),
-            ActiveConnection {
+            Arc::new(ActiveConnection {
                 pool,
                 tunnel: Some(tunnel),
-            },
+                tx_slot: AsyncMutex::new(None),
+            }),
         );
         Ok(())
     }
 
-    pub fn disconnect(&self, connection_id: &str) -> TuskResult<()> {
-        let mut guard = self.inner.lock().expect("registry poisoned");
-        guard.remove(connection_id);
+    pub async fn disconnect(&self, connection_id: &str) -> TuskResult<()> {
+        let active = {
+            let mut guard = self.inner.lock().expect("registry poisoned");
+            guard.remove(connection_id)
+        };
+        if let Some(active) = active {
+            // Take the sticky tx out (if any) so we can rollback.
+            let sticky_opt = {
+                let mut slot = active.tx_slot.lock().await;
+                slot.take()
+            };
+            if let Some(mut sticky) = sticky_opt {
+                match tokio::time::timeout(
+                    std::time::Duration::from_secs(1),
+                    sqlx::query("ROLLBACK").execute(&mut *sticky.conn),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {}
+                    Ok(Err(e)) => {
+                        eprintln!("disconnect: ROLLBACK failed for tx {}: {e}", sticky.tx_id)
+                    }
+                    Err(_) => eprintln!("disconnect: ROLLBACK timed out for tx {}", sticky.tx_id),
+                }
+            }
+            // active drops, pool drops, tunnel drops naturally.
+        }
         Ok(())
+    }
+
+    pub fn handle(&self, connection_id: &str) -> TuskResult<Arc<ActiveConnection>> {
+        let guard = self.inner.lock().expect("registry poisoned");
+        guard
+            .get(connection_id)
+            .cloned()
+            .ok_or_else(|| TuskError::Connection(format!("not connected: {connection_id}")))
     }
 
     pub fn pool(&self, connection_id: &str) -> TuskResult<PgPool> {

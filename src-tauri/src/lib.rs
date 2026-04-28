@@ -1,6 +1,6 @@
 use tauri::Manager;
 
-mod commands;
+pub mod commands;
 pub mod db;
 pub mod errors;
 pub mod secrets;
@@ -13,6 +13,8 @@ use crate::db::state::StateStore;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             let app_data = app.path().app_data_dir().expect("app_data_dir unavailable");
             std::fs::create_dir_all(&app_data).ok();
@@ -20,6 +22,7 @@ pub fn run() {
                 StateStore::open(app_data.join("tusk.db")).expect("failed to open state store");
             app.manage(store);
             app.manage(ConnectionRegistry::new());
+            app.manage(crate::db::pg_meta::MetaCache::new());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -35,6 +38,16 @@ pub fn run() {
             commands::schema::list_schemas,
             commands::schema::list_tables,
             commands::schema::list_columns,
+            commands::history::list_history,
+            commands::history::list_history_statements,
+            commands::transactions::tx_begin,
+            commands::transactions::tx_commit,
+            commands::transactions::tx_rollback,
+            commands::fk_lookup::fk_lookup,
+            commands::editing::preview_pending_changes,
+            commands::editing::submit_pending_changes,
+            commands::cancel::cancel_query,
+            commands::export::export_result,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

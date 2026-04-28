@@ -39,5 +39,5 @@ async fn connect_and_select_one() {
     let pool = registry.pool("test").unwrap();
     let row: (i32,) = sqlx::query_as("SELECT 1").fetch_one(&pool).await.unwrap();
     assert_eq!(row.0, 1);
-    registry.disconnect("test").unwrap();
+    registry.disconnect("test").await.unwrap();
 }
