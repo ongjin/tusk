@@ -1,4 +1,5 @@
 pub mod ai_secrets;
+pub mod ai_tools;
 pub mod cancel;
 pub mod connections;
 pub mod destructive;
