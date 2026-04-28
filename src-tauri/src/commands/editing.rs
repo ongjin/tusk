@@ -118,14 +118,17 @@ pub fn build_update(b: &PendingBatch, mode: ConflictMode) -> TuskResult<BuiltUpd
     }
 
     if let ConflictMode::Strict = mode {
-        // Add per-column NULL-safe equality on non-edited captured columns.
+        // Add per-column NULL-safe equality on every non-PK captured column,
+        // INCLUDING the column being edited. The captured `val` is the
+        // column's ORIGINAL value (snapshot at edit-start), so comparing
+        // against it detects same-column lost updates: a concurrent client
+        // that changed this column will produce affected=0.
         // Skip floats (PG IS NOT DISTINCT FROM still works for floats but
         // exact-bit equality is misleading; spec calls this out).
         for (col, val) in b.captured_columns.iter().zip(b.captured_row.iter()) {
             let is_pk = b.pk_columns.contains(col);
-            let edited = b.edits.iter().any(|e| &e.column == col);
             let is_float = matches!(val, Cell::Float(_));
-            if is_pk || edited || is_float {
+            if is_pk || is_float {
                 continue;
             }
             let bind_idx = binds.len() + 1;
@@ -326,10 +329,29 @@ mod tests {
     #[test]
     fn build_update_strict_adds_captured_clauses() {
         let built = build_update(&batch_update_simple(), ConflictMode::Strict).unwrap();
-        assert!(built
-            .parameterized_sql
-            .contains("\"active\" IS NOT DISTINCT FROM"));
-        assert_eq!(built.binds.len(), 3); // email + id + active
+        // Strict mode adds IS NOT DISTINCT FROM for every non-PK non-float column,
+        // INCLUDING the edited column (with its ORIGINAL captured value, not the new one).
+        // This is the lost-update detection invariant: a concurrent change to the
+        // edited column will produce affected=0.
+        assert!(
+            built
+                .parameterized_sql
+                .contains("\"email\" IS NOT DISTINCT FROM"),
+            "Strict mode should include edited column with original value:\n{}",
+            built.parameterized_sql
+        );
+        assert!(
+            built
+                .parameterized_sql
+                .contains("\"active\" IS NOT DISTINCT FROM"),
+            "Strict mode should include non-edited captured column:\n{}",
+            built.parameterized_sql
+        );
+        // 4 binds: SET email='new@x' + PK id=42 + WHERE email='old@x' (orig) + WHERE active=true
+        assert_eq!(built.binds.len(), 4);
+        // Preview should reference both the new email value (in SET) and the original (in WHERE).
+        assert!(built.preview_sql.contains("'new@x'"));
+        assert!(built.preview_sql.contains("'old@x'"));
     }
 
     #[test]

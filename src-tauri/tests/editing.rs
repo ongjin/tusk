@@ -66,18 +66,17 @@ async fn strict_detects_concurrent_change() {
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("CREATE TABLE edit_t2 (id int primary key, email text, name text)")
+    sqlx::query("CREATE TABLE edit_t2 (id int primary key, email text)")
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("INSERT INTO edit_t2 VALUES (1, 'old@x', 'old-name')")
+    sqlx::query("INSERT INTO edit_t2 VALUES (1, 'old@x')")
         .execute(&pool)
         .await
         .unwrap();
 
-    // Concurrent mutation — simulates "someone else changed it" — modifies a
-    // non-edited column so Strict mode (which skips the edited column) detects.
-    sqlx::query("UPDATE edit_t2 SET name = 'other-name' WHERE id = 1")
+    // Concurrent mutation — simulates "someone else changed it"
+    sqlx::query("UPDATE edit_t2 SET email = 'other@x' WHERE id = 1")
         .execute(&pool)
         .await
         .unwrap();
@@ -95,18 +94,15 @@ async fn strict_detects_concurrent_change() {
             column: "email".into(),
             next: Cell::Text("new@x".into()),
         }],
-        // Captured snapshot — `name` is stale!
-        captured_row: vec![
-            Cell::Int(1),
-            Cell::Text("old@x".into()),
-            Cell::Text("old-name".into()),
-        ],
-        captured_columns: vec!["id".into(), "email".into(), "name".into()],
+        // captured_row is the row state when the user started editing.
+        // Concurrent UPDATE has changed email to 'other@x' since.
+        captured_row: vec![Cell::Int(1), Cell::Text("old@x".into())],
+        captured_columns: vec!["id".into(), "email".into()],
     };
     let built = build_update(&b, ConflictMode::Strict).unwrap();
     let mut tx = pool.begin().await.unwrap();
     let q = sqlx::query(&built.parameterized_sql);
     let q = bind_cells(q, &built.binds);
     let res = q.execute(&mut *tx).await.unwrap();
-    assert_eq!(res.rows_affected(), 0); // conflict detected
+    assert_eq!(res.rows_affected(), 0); // conflict detected via edited column
 }
