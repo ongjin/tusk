@@ -10,6 +10,7 @@ import {
   type BatchResult,
 } from "@/features/editing/PreviewModal";
 import { toRustBatch } from "@/features/editing/toRustBatch";
+import { ExportDialog } from "@/features/export/ExportDialog";
 import type { QueryResult } from "@/lib/types";
 import { usePendingChanges } from "@/store/pendingChanges";
 import { useSettings } from "@/store/settings";
@@ -23,6 +24,7 @@ interface Props {
 
 export function ResultsHeader({ result, error, busy, connId }: Props) {
   const [showPreview, setShowPreview] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [activeConflict, setActiveConflict] = useState<BatchConflict | null>(
     null,
   );
@@ -114,6 +116,16 @@ export function ResultsHeader({ result, error, busy, connId }: Props) {
             onSubmit={() => setShowPreview(true)}
             onRevert={() => usePendingChanges.getState().revertAll()}
           />
+          {result.rows.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowExport(true)}
+              className="border-input hover:bg-accent rounded-sm border px-2 py-0.5 text-xs"
+              title="Export this result"
+            >
+              Export
+            </button>
+          )}
         </>
       )}
       {!busy && !result && !error && (
@@ -126,6 +138,13 @@ export function ResultsHeader({ result, error, busy, connId }: Props) {
           connId={connId}
           onClose={() => setShowPreview(false)}
           onSubmitDone={handleSubmitDone}
+        />
+      )}
+      {showExport && result && (
+        <ExportDialog
+          rows={result.rows}
+          meta={result.meta}
+          onClose={() => setShowExport(false)}
         />
       )}
       {activeConflict && conflictPending && connId && (
