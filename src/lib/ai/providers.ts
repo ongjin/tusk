@@ -16,15 +16,24 @@ export interface BuildModelArgs {
 export function buildModel(args: BuildModelArgs): LanguageModel {
   switch (args.provider) {
     case "openai": {
-      const oai = createOpenAI({ apiKey: args.apiKey });
+      const oai = createOpenAI({
+        apiKey: args.apiKey,
+        ...(args.baseUrl ? { baseURL: args.baseUrl } : {}),
+      });
       return oai(args.modelId);
     }
     case "anthropic": {
-      const anth = createAnthropic({ apiKey: args.apiKey });
+      const anth = createAnthropic({
+        apiKey: args.apiKey,
+        ...(args.baseUrl ? { baseURL: args.baseUrl } : {}),
+      });
       return anth(args.modelId);
     }
     case "gemini": {
-      const google = createGoogleGenerativeAI({ apiKey: args.apiKey });
+      const google = createGoogleGenerativeAI({
+        apiKey: args.apiKey,
+        ...(args.baseUrl ? { baseURL: args.baseUrl } : {}),
+      });
       return google(args.modelId);
     }
     case "ollama": {
