@@ -1,4 +1,8 @@
+import { toast } from "sonner";
+
+import { PendingBadge } from "@/features/editing/PendingBadge";
 import type { QueryResult } from "@/lib/types";
+import { usePendingChanges } from "@/store/pendingChanges";
 
 interface Props {
   result?: QueryResult;
@@ -32,6 +36,11 @@ export function ResultsHeader({ result, error, busy }: Props) {
               🔒
             </span>
           )}
+          <PendingBadge
+            onPreview={() => toast.info("Preview lands in Task 17")}
+            onSubmit={() => toast.info("Submit lands in Task 17")}
+            onRevert={() => usePendingChanges.getState().revertAll()}
+          />
         </>
       )}
       {!busy && !result && !error && (

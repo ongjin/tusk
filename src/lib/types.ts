@@ -210,3 +210,14 @@ export interface HistoryStatement {
   status: "ok" | "error";
   errorMessage?: string;
 }
+
+export interface PendingChange {
+  rowKey: string;
+  table: { schema: string; name: string };
+  pk: { columns: string[]; values: Cell[] };
+  edits: { column: string; original: Cell; next: Cell }[];
+  op: "update" | "insert" | "delete";
+  capturedRow: Cell[];
+  capturedColumns: string[];
+  capturedAt: number;
+}

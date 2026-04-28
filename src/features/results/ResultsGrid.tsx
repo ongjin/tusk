@@ -8,9 +8,8 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
+import { EditableCell } from "@/features/editing/EditableCell";
 import type { Cell, QueryResult } from "@/lib/types";
-
-import { renderCell } from "./cells";
 
 type Row = Record<string, Cell>;
 
@@ -27,7 +26,7 @@ export function ResultsGrid({ result }: { result: QueryResult }) {
 
   const columns = useMemo<ColumnDef<Row>[]>(
     () =>
-      result.columns.map((c) => ({
+      result.columns.map((c, columnIndex) => ({
         accessorKey: c.name,
         header: () => (
           <div className="flex flex-col leading-tight">
@@ -39,9 +38,16 @@ export function ResultsGrid({ result }: { result: QueryResult }) {
             </span>
           </div>
         ),
-        cell: (info) => renderCell(info.getValue() as Cell),
+        cell: (info) => (
+          <EditableCell
+            value={info.getValue() as Cell}
+            columnIndex={columnIndex}
+            row={result.rows[info.row.index]}
+            meta={result.meta}
+          />
+        ),
       })),
-    [result.columns],
+    [result.columns, result.rows, result.meta],
   );
 
   const table = useReactTable({
