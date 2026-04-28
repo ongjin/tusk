@@ -151,8 +151,20 @@ function cellToText(c: Cell): string {
       return c.value;
     case "Interval":
       return c.value.iso;
-    case "Bytea":
-      return `\\x${c.value.b64}`;
+    case "Bytea": {
+      // Match export.rs / pgLiterals.ts hex form so users can paste back into
+      // a bytea column. Falls back to the raw b64 if decoding throws.
+      try {
+        const bin = atob(c.value.b64);
+        let hex = "";
+        for (let i = 0; i < bin.length; i++) {
+          hex += bin.charCodeAt(i).toString(16).padStart(2, "0");
+        }
+        return `\\x${hex}`;
+      } catch {
+        return `\\x${c.value.b64}`;
+      }
+    }
     case "Json":
       return JSON.stringify(c.value);
     case "Array":

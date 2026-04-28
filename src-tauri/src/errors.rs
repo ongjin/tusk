@@ -23,7 +23,9 @@ pub enum TuskError {
     Editing(String),
     #[error("Conflict on batch")]
     Conflict {
+        #[serde(rename = "batchId")]
         batch_id: String,
+        #[serde(rename = "executedSql")]
         executed_sql: String,
         current: serde_json::Value,
     },
@@ -74,7 +76,8 @@ mod tests {
         };
         let json = serde_json::to_string(&err).unwrap();
         assert!(json.contains("\"kind\":\"Conflict\""));
-        assert!(json.contains("\"batch_id\":\"b1\""));
+        assert!(json.contains("\"batchId\":\"b1\""));
+        assert!(json.contains("\"executedSql\":\"UPDATE t ...\""));
     }
 
     #[test]

@@ -283,10 +283,10 @@ pub fn bind_cells<'q>(
                     .unwrap_or_default(),
             ),
             Cell::Json(v) => q.bind(v.clone()),
-            // Other variants (Interval, Array, Enum, Vector, Timetz, Unknown) are not
-            // typically in a PendingBatch's bind list (Week 3 widget set).
-            // Bind as Null for safety; a later task can extend.
-            // TODO(week-3+): add proper bindings for Interval/Array/Enum/Vector/Timetz/Unknown.
+            // These variants (Interval, Array, Enum, Vector, Timetz, Unknown) are
+            // validated out at submit time by `validate_cells_bindable`; reaching
+            // this branch indicates a missed validation. Bind NULL as a fail-safe
+            // (we don't panic in release to avoid taking down the process).
             _ => q.bind(None::<i32>),
         };
     }
@@ -296,11 +296,47 @@ pub fn bind_cells<'q>(
 /// Build the parameterized + preview SQL for a batch using the chosen mode.
 /// Pure — no DB I/O.
 fn build_for_batch(b: &PendingBatch, mode: ConflictMode) -> TuskResult<BuiltUpdate> {
+    validate_cells_bindable(b)?;
     match b.op {
         PendingOp::Update => build_update(b, mode),
         PendingOp::Insert => build_insert(b),
         PendingOp::Delete => build_delete(b, mode),
     }
+}
+
+/// Reject batches that contain Cell variants `bind_cells` cannot bind.
+/// Without this gate, `bind_cells` would silently coerce these values to NULL
+/// and write a NULL into the column. Returns `UnsupportedEditType` so the
+/// caller surfaces a `BatchResult::Error` and (for the out-of-tx path) halts
+/// remaining batches via the conflict-or-error short-circuit.
+fn validate_cells_bindable(b: &PendingBatch) -> TuskResult<()> {
+    let mut all_cells: Vec<&Cell> = Vec::new();
+    all_cells.extend(b.pk_values.iter());
+    all_cells.extend(b.edits.iter().map(|e| &e.next));
+    if matches!(b.op, PendingOp::Update | PendingOp::Delete) {
+        // Strict-mode WHERE clauses bind every captured cell, so they must be
+        // bindable too. PkOnly mode binds only PKs (already covered above), but
+        // validating eagerly is cheap and keeps PkOnly/Strict behavior aligned.
+        all_cells.extend(b.captured_row.iter());
+    }
+    for cell in all_cells {
+        let variant_name = match cell {
+            Cell::Interval { .. } => Some("interval"),
+            Cell::Array { .. } => Some("array"),
+            Cell::Enum { .. } => Some("enum"),
+            Cell::Vector { .. } => Some("vector"),
+            Cell::Timetz(_) => Some("timetz"),
+            Cell::Unknown { .. } => Some("unknown"),
+            _ => None,
+        };
+        if let Some(name) = variant_name {
+            return Err(TuskError::UnsupportedEditType {
+                oid: 0,
+                name: name.to_string(),
+            });
+        }
+    }
+    Ok(())
 }
 
 /// Preview the rendered (literal-inlined) SQL for each batch — no execution.
@@ -725,5 +761,30 @@ mod tests {
             built.parameterized_sql,
             "DELETE FROM \"public\".\"users\" WHERE \"id\" IS NOT DISTINCT FROM $1"
         );
+    }
+
+    #[test]
+    fn submit_rejects_enum_in_edits() {
+        let b = PendingBatch {
+            batch_id: "b1".into(),
+            op: PendingOp::Update,
+            table: TableRef {
+                schema: "public".into(),
+                name: "t".into(),
+            },
+            pk_columns: vec!["id".into()],
+            pk_values: vec![Cell::Int(1)],
+            edits: vec![ColumnEdit {
+                column: "mood".into(),
+                next: Cell::Enum {
+                    type_name: "mood_t".into(),
+                    value: "happy".into(),
+                },
+            }],
+            captured_row: vec![Cell::Int(1)],
+            captured_columns: vec!["id".into()],
+        };
+        let r = validate_cells_bindable(&b);
+        assert!(matches!(r, Err(TuskError::UnsupportedEditType { .. })));
     }
 }

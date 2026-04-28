@@ -44,10 +44,22 @@ pub async fn fk_lookup(
     let display = display_col.clone().unwrap_or_else(|| pk_column.clone());
 
     let where_clause = match &query {
-        Some(q) if !q.is_empty() => format!(
-            "WHERE \"{display}\"::text ILIKE '%{}%'",
-            q.replace('\'', "''")
-        ),
+        Some(q) if !q.is_empty() => {
+            // Escape LIKE wildcards (%, _) and backslash so the user's literal
+            // text isn't interpreted as a pattern. Single quotes are doubled
+            // for SQL literal safety. The explicit `ESCAPE '\'` clause tells
+            // Postgres which character is the LIKE escape.
+            let escaped = q
+                .replace('\\', "\\\\")
+                .replace('%', "\\%")
+                .replace('_', "\\_")
+                .replace('\'', "''");
+            format!(
+                "WHERE \"{display}\"::text ILIKE '%{escaped}%' ESCAPE '\\'",
+                display = display,
+                escaped = escaped
+            )
+        }
         _ => String::new(),
     };
 
