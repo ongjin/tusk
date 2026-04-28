@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { listen } from "@tauri-apps/api/event";
 
 import {
   addConnection as addConnectionCmd,
@@ -66,3 +67,16 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
     set({ activeId: id });
   },
 }));
+
+let subscribed = false;
+function ensureLostListener() {
+  if (subscribed) return;
+  subscribed = true;
+  listen<string>("connection:lost", (e) => {
+    const id = e.payload;
+    useConnections.getState().refresh();
+    import("sonner").then(({ toast }) => toast.error(`Lost connection ${id}`));
+  });
+}
+
+ensureLostListener();

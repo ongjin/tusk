@@ -3,6 +3,7 @@ use std::net::TcpListener;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
+use tauri::{AppHandle, Emitter, Runtime};
 use tokio::net::TcpStream;
 use tokio::time::sleep;
 
@@ -50,7 +51,11 @@ fn pick_free_port() -> TuskResult<u16> {
     Ok(port)
 }
 
-pub async fn open_tunnel(spec: TunnelSpec) -> TuskResult<TunnelHandle> {
+pub async fn open_tunnel<R: Runtime>(
+    app: AppHandle<R>,
+    connection_id: String,
+    spec: TunnelSpec,
+) -> TuskResult<TunnelHandle> {
     let local_port = pick_free_port()?;
 
     let mut cmd = Command::new("ssh");
@@ -101,6 +106,32 @@ pub async fn open_tunnel(spec: TunnelSpec) -> TuskResult<TunnelHandle> {
     let timeout = Duration::from_secs(5);
     loop {
         if TcpStream::connect(("127.0.0.1", local_port)).await.is_ok() {
+            let pid = handle.child.id();
+
+            #[cfg(unix)]
+            {
+                let app_for_task = app.clone();
+                let id_for_task = connection_id.clone();
+                tokio::spawn(async move {
+                    use nix::sys::signal::kill;
+                    use nix::unistd::Pid;
+                    loop {
+                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                        let alive = kill(Pid::from_raw(pid as i32), None).is_ok();
+                        if !alive {
+                            let _ = app_for_task.emit("connection:lost", &id_for_task);
+                            break;
+                        }
+                    }
+                });
+            }
+
+            #[cfg(not(unix))]
+            {
+                // Windows path: tunnel-death detection is a v1.5 follow-up.
+                let _ = (&app, &connection_id, pid);
+            }
+
             return Ok(handle);
         }
         if started.elapsed() >= timeout {
@@ -134,12 +165,13 @@ mod tests {
 
     #[tokio::test]
     async fn unknown_alias_times_out() {
+        let app = tauri::test::mock_app();
         let spec = TunnelSpec {
             target: SshTarget::Alias("definitely-not-a-real-host-tusk".into()),
             remote_host: "127.0.0.1".into(),
             remote_port: 5432,
         };
-        let result = open_tunnel(spec).await;
+        let result = open_tunnel(app.handle().clone(), "test-id".into(), spec).await;
         assert!(result.is_err(), "expected tunnel error, got {result:?}");
     }
 }

@@ -8,6 +8,7 @@ import { executeQuery } from "@/lib/tauri";
 import { withAutoLimit } from "@/lib/sql";
 import { useTheme } from "@/hooks/use-theme";
 import { useConnections } from "@/store/connections";
+import { useSettings } from "@/store/settings";
 import { useTabs } from "@/store/tabs";
 import { ResultsGrid } from "@/features/results/ResultsGrid";
 import { ResultsHeader } from "@/features/results/ResultsHeader";
@@ -15,10 +16,9 @@ import { ResultsHeader } from "@/features/results/ResultsHeader";
 import { EditorTabs } from "./EditorTabs";
 import { isModifier, platformModifier } from "./keymap";
 
-const AUTO_LIMIT_DEFAULT = 1000;
-
 export function EditorPane() {
   const { theme } = useTheme();
+  const autoLimit = useSettings((s) => s.autoLimit);
   const tabs = useTabs((s) => s.tabs);
   const activeId = useTabs((s) => s.activeId);
   const updateSql = useTabs((s) => s.updateSql);
@@ -44,7 +44,8 @@ export function EditorPane() {
     }
     setBusy(activeTab.id, true);
     try {
-      const sqlToRun = withAutoLimit(activeTab.sql, AUTO_LIMIT_DEFAULT);
+      const sqlToRun =
+        autoLimit > 0 ? withAutoLimit(activeTab.sql, autoLimit) : activeTab.sql;
       const result = await executeQuery(connectionForTab, sqlToRun);
       setResult(activeTab.id, result);
     } catch (e) {
@@ -55,6 +56,7 @@ export function EditorPane() {
   }, [
     activeTab.id,
     activeTab.sql,
+    autoLimit,
     connectionForTab,
     setBusy,
     setError,

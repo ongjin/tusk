@@ -64,6 +64,7 @@ pub async fn delete_connection(
 
 #[tauri::command]
 pub async fn connect(
+    app: tauri::AppHandle,
     store: State<'_, StateStore>,
     registry: State<'_, ConnectionRegistry>,
     id: String,
@@ -92,11 +93,15 @@ pub async fn connect(
                 .ssh_alias
                 .clone()
                 .ok_or_else(|| TuskError::Tunnel("ssh_alias missing".into()))?;
-            let tunnel = open_tunnel(TunnelSpec {
-                target: SshTarget::Alias(alias),
-                remote_host: record.host.clone(),
-                remote_port: record.port,
-            })
+            let tunnel = open_tunnel(
+                app.clone(),
+                id.clone(),
+                TunnelSpec {
+                    target: SshTarget::Alias(alias),
+                    remote_host: record.host.clone(),
+                    remote_port: record.port,
+                },
+            )
             .await?;
             let spec = DirectConnectSpec {
                 host: record.host,
@@ -120,16 +125,20 @@ pub async fn connect(
                 .clone()
                 .ok_or_else(|| TuskError::Tunnel("ssh_user missing".into()))?;
             let key_path = record.ssh_key_path.clone();
-            let tunnel = open_tunnel(TunnelSpec {
-                target: SshTarget::Manual {
-                    host,
-                    port,
-                    user,
-                    key_path,
+            let tunnel = open_tunnel(
+                app.clone(),
+                id.clone(),
+                TunnelSpec {
+                    target: SshTarget::Manual {
+                        host,
+                        port,
+                        user,
+                        key_path,
+                    },
+                    remote_host: record.host.clone(),
+                    remote_port: record.port,
                 },
-                remote_host: record.host.clone(),
-                remote_port: record.port,
-            })
+            )
             .await?;
             let spec = DirectConnectSpec {
                 host: record.host,

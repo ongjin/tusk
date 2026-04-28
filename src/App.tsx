@@ -6,9 +6,12 @@ import { SchemaTree } from "@/features/schema/SchemaTree";
 import { EditorPane } from "@/features/editor/EditorPane";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/hooks/use-theme";
+import { useSettings } from "@/store/settings";
 
 function App() {
   const { theme, toggle } = useTheme();
+  const autoLimit = useSettings((s) => s.autoLimit);
+  const setAutoLimit = useSettings((s) => s.setAutoLimit);
 
   return (
     <div className="bg-background text-foreground grid h-full grid-cols-[280px_1fr]">
@@ -24,6 +27,22 @@ function App() {
           <ConnectionList />
         </div>
         <SchemaTree />
+        <div className="border-border border-t p-3 text-xs">
+          <label className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">Auto LIMIT</span>
+            <input
+              type="number"
+              min={0}
+              step={100}
+              className="border-input w-24 rounded border px-2 py-1"
+              value={autoLimit}
+              onChange={(e) => setAutoLimit(Number(e.target.value) || 0)}
+            />
+          </label>
+          <p className="text-muted-foreground mt-1">
+            0 = off. Skipped if SQL has its own LIMIT.
+          </p>
+        </div>
       </aside>
 
       <main className="flex min-h-0 flex-col">
