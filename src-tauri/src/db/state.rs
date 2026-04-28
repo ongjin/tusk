@@ -226,8 +226,40 @@ impl StateStore {
     }
 
     pub fn get(&self, id: &str) -> TuskResult<Option<ConnectionRecord>> {
-        let all = self.list()?;
-        Ok(all.into_iter().find(|c| c.id == id))
+        let db = self.db.lock().expect("state lock poisoned");
+        let mut stmt = db
+            .prepare(
+                "SELECT id, name, host, port, db_user, database, ssl_mode, ssh_kind,
+                        ssh_alias, ssh_host, ssh_port, ssh_user, ssh_key_path,
+                        created_at, updated_at
+                 FROM connections WHERE id = ?1",
+            )
+            .map_err(|e| TuskError::State(e.to_string()))?;
+        let mut rows = stmt
+            .query(params![id])
+            .map_err(|e| TuskError::State(e.to_string()))?;
+        let Some(row) = rows.next().map_err(|e| TuskError::State(e.to_string()))? else {
+            return Ok(None);
+        };
+
+        let ssh_kind_str: String = row.get(7).map_err(|e| TuskError::State(e.to_string()))?;
+        Ok(Some(ConnectionRecord {
+            id: row.get(0).map_err(|e| TuskError::State(e.to_string()))?,
+            name: row.get(1).map_err(|e| TuskError::State(e.to_string()))?,
+            host: row.get(2).map_err(|e| TuskError::State(e.to_string()))?,
+            port: row.get(3).map_err(|e| TuskError::State(e.to_string()))?,
+            db_user: row.get(4).map_err(|e| TuskError::State(e.to_string()))?,
+            database: row.get(5).map_err(|e| TuskError::State(e.to_string()))?,
+            ssl_mode: row.get(6).map_err(|e| TuskError::State(e.to_string()))?,
+            ssh_kind: SshKind::parse(&ssh_kind_str)?,
+            ssh_alias: row.get(8).map_err(|e| TuskError::State(e.to_string()))?,
+            ssh_host: row.get(9).map_err(|e| TuskError::State(e.to_string()))?,
+            ssh_port: row.get(10).map_err(|e| TuskError::State(e.to_string()))?,
+            ssh_user: row.get(11).map_err(|e| TuskError::State(e.to_string()))?,
+            ssh_key_path: row.get(12).map_err(|e| TuskError::State(e.to_string()))?,
+            created_at: row.get(13).map_err(|e| TuskError::State(e.to_string()))?,
+            updated_at: row.get(14).map_err(|e| TuskError::State(e.to_string()))?,
+        }))
     }
 
     pub fn delete(&self, id: &str) -> TuskResult<()> {
