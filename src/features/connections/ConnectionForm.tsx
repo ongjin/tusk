@@ -189,18 +189,7 @@ export function ConnectionForm() {
 
           <TabsContent value="alias" className="flex flex-col gap-3 pt-3">
             <SshHostPicker
-              selected={
-                draft.sshAlias
-                  ? {
-                      alias: draft.sshAlias,
-                      hostname: null,
-                      user: null,
-                      port: null,
-                      identityFile: null,
-                      proxyJump: null,
-                    }
-                  : null
-              }
+              selectedAlias={draft.sshAlias}
               onSelect={(host) =>
                 setDraft({
                   ...draft,

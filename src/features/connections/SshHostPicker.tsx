@@ -7,11 +7,11 @@ import type { SshHost } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  selected: SshHost | null;
+  selectedAlias: string | null;
   onSelect: (host: SshHost) => void;
 }
 
-export function SshHostPicker({ selected, onSelect }: Props) {
+export function SshHostPicker({ selectedAlias, onSelect }: Props) {
   const [hosts, setHosts] = useState<SshHost[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,7 +35,7 @@ export function SshHostPicker({ selected, onSelect }: Props) {
   return (
     <ul className="border-input max-h-48 overflow-auto rounded-md border">
       {hosts.map((h) => {
-        const isActive = selected?.alias === h.alias;
+        const isActive = selectedAlias === h.alias;
         return (
           <li
             key={h.alias}
