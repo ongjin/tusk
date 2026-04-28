@@ -1,13 +1,18 @@
 import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 
+import { ConflictModal } from "@/features/editing/ConflictModal";
 import { PendingBadge } from "@/features/editing/PendingBadge";
 import {
   PreviewModal,
+  type BatchConflict,
   type BatchResult,
 } from "@/features/editing/PreviewModal";
+import { toRustBatch } from "@/features/editing/toRustBatch";
 import type { QueryResult } from "@/lib/types";
 import { usePendingChanges } from "@/store/pendingChanges";
+import { useSettings } from "@/store/settings";
 
 interface Props {
   result?: QueryResult;
@@ -18,26 +23,36 @@ interface Props {
 
 export function ResultsHeader({ result, error, busy, connId }: Props) {
   const [showPreview, setShowPreview] = useState(false);
+  const [activeConflict, setActiveConflict] = useState<BatchConflict | null>(
+    null,
+  );
+  const conflictMode = useSettings((s) => s.editConflictMode);
+  const setConflictMode = useSettings((s) => s.setEditConflictMode);
 
   const handleSubmitDone = (batches: BatchResult[]) => {
     setShowPreview(false);
-    const conflicts = batches.filter((b) => b.status === "conflict");
+    const conflicts = batches.filter(
+      (b) => b.status === "conflict",
+    ) as BatchConflict[];
     const errors = batches.filter((b) => b.status === "error");
     const oks = batches.filter((b) => b.status === "ok");
     if (conflicts.length > 0) {
-      toast.warning(
-        `${conflicts.length} conflict(s); ${oks.length} pending stays open. (ConflictModal arrives in Task 18)`,
-      );
-      // Leave pending changes intact so the user can retry/discard.
+      setActiveConflict(conflicts[0]); // resolve one at a time
     } else if (errors.length > 0) {
       const err = errors[0] as { message: string };
       toast.error(`Submit failed: ${err.message}`);
-      // Leave pending intact.
     } else {
       toast.success(`${oks.length} row(s) updated`);
       usePendingChanges.getState().revertAll();
     }
   };
+
+  const conflictPending = activeConflict
+    ? usePendingChanges
+        .getState()
+        .list()
+        .find((p) => p.rowKey === activeConflict.batchId)
+    : null;
 
   return (
     <div className="border-border bg-muted/40 flex items-center gap-3 border-b px-3 py-1.5 text-xs">
@@ -64,6 +79,19 @@ export function ResultsHeader({ result, error, busy, connId }: Props) {
               🔒
             </span>
           )}
+          {result.meta.editable && (
+            <select
+              value={conflictMode}
+              onChange={(e) =>
+                setConflictMode(e.target.value as "pkOnly" | "strict")
+              }
+              className="bg-background border-input rounded-sm border px-2 py-0.5 text-xs"
+              title="Conflict detection mode"
+            >
+              <option value="pkOnly">PK only</option>
+              <option value="strict">Strict</option>
+            </select>
+          )}
           <PendingBadge
             onPreview={() => setShowPreview(true)}
             onSubmit={() => setShowPreview(true)}
@@ -81,6 +109,31 @@ export function ResultsHeader({ result, error, busy, connId }: Props) {
           connId={connId}
           onClose={() => setShowPreview(false)}
           onSubmitDone={handleSubmitDone}
+        />
+      )}
+      {activeConflict && conflictPending && connId && (
+        <ConflictModal
+          conflict={activeConflict}
+          pending={conflictPending}
+          capturedColumns={conflictPending.capturedColumns}
+          onForceOverwrite={async () => {
+            // Re-submit just this batch with mode=pkOnly.
+            const r = await invoke<{ batches: BatchResult[] }>(
+              "submit_pending_changes",
+              {
+                connectionId: connId,
+                batches: [toRustBatch(conflictPending)],
+                mode: "pkOnly",
+              },
+            );
+            setActiveConflict(null);
+            handleSubmitDone(r.batches);
+          }}
+          onDiscard={() => {
+            usePendingChanges.getState().revertRow(conflictPending.rowKey);
+            setActiveConflict(null);
+          }}
+          onClose={() => setActiveConflict(null)}
         />
       )}
     </div>

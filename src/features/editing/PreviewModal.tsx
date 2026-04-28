@@ -1,23 +1,24 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-import type { Cell, PendingChange } from "@/lib/types";
+import { toRustBatch } from "@/features/editing/toRustBatch";
+import type { Cell } from "@/lib/types";
 import { usePendingChanges } from "@/store/pendingChanges";
 import { useSettings } from "@/store/settings";
 
-interface BatchOk {
+export interface BatchOk {
   status: "ok";
   batchId: string;
   executedSql: string;
   affected: number;
 }
-interface BatchConflict {
+export interface BatchConflict {
   status: "conflict";
   batchId: string;
   executedSql: string;
   current: Cell[];
 }
-interface BatchError {
+export interface BatchError {
   status: "error";
   batchId: string;
   executedSql: string;
@@ -111,17 +112,4 @@ export function PreviewModal({ connId, onClose, onSubmitDone }: Props) {
       </div>
     </div>
   );
-}
-
-function toRustBatch(p: PendingChange): unknown {
-  return {
-    batchId: p.rowKey,
-    op: p.op,
-    table: p.table,
-    pkColumns: p.pk.columns,
-    pkValues: p.pk.values,
-    edits: p.edits.map((e) => ({ column: e.column, next: e.next })),
-    capturedRow: p.capturedRow,
-    capturedColumns: p.capturedColumns,
-  };
 }

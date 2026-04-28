@@ -106,3 +106,97 @@ async fn strict_detects_concurrent_change() {
     let res = q.execute(&mut *tx).await.unwrap();
     assert_eq!(res.rows_affected(), 0); // conflict detected via edited column
 }
+
+#[tokio::test]
+async fn multi_batch_atomic_rollback_on_conflict() {
+    // Two-row batch: first row updates cleanly, second row's strict WHERE
+    // misses (concurrent change). Asserts that when we roll back the tx,
+    // row 1's successful UPDATE is discarded — the table is unchanged.
+    let pool = pool().await;
+    sqlx::query("DROP TABLE IF EXISTS edit_t3")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("CREATE TABLE edit_t3 (id int primary key, email text)")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO edit_t3 VALUES (1, 'a@x'), (2, 'b@x')")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    // Concurrent change on row 2 only — row 1 stays at 'a@x'.
+    sqlx::query("UPDATE edit_t3 SET email = 'other@x' WHERE id = 2")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let b1 = PendingBatch {
+        batch_id: "row1".into(),
+        op: PendingOp::Update,
+        table: TableRef {
+            schema: "public".into(),
+            name: "edit_t3".into(),
+        },
+        pk_columns: vec!["id".into()],
+        pk_values: vec![Cell::Int(1)],
+        edits: vec![ColumnEdit {
+            column: "email".into(),
+            next: Cell::Text("a-new@x".into()),
+        }],
+        captured_row: vec![Cell::Int(1), Cell::Text("a@x".into())],
+        captured_columns: vec!["id".into(), "email".into()],
+    };
+    let b2 = PendingBatch {
+        batch_id: "row2".into(),
+        op: PendingOp::Update,
+        table: TableRef {
+            schema: "public".into(),
+            name: "edit_t3".into(),
+        },
+        pk_columns: vec!["id".into()],
+        pk_values: vec![Cell::Int(2)],
+        edits: vec![ColumnEdit {
+            column: "email".into(),
+            next: Cell::Text("b-new@x".into()),
+        }],
+        // captured snapshot is stale — concurrent UPDATE moved row 2 to 'other@x'.
+        captured_row: vec![Cell::Int(2), Cell::Text("b@x".into())],
+        captured_columns: vec!["id".into(), "email".into()],
+    };
+
+    let mut tx = pool.begin().await.unwrap();
+
+    // Apply batch 1 — succeeds within the tx.
+    let built1 = build_update(&b1, ConflictMode::Strict).unwrap();
+    let q1 = sqlx::query(&built1.parameterized_sql);
+    let q1 = bind_cells(q1, &built1.binds);
+    let r1 = q1.execute(&mut *tx).await.unwrap();
+    assert_eq!(r1.rows_affected(), 1);
+
+    // Apply batch 2 — strict conflict (rows_affected = 0).
+    let built2 = build_update(&b2, ConflictMode::Strict).unwrap();
+    let q2 = sqlx::query(&built2.parameterized_sql);
+    let q2 = bind_cells(q2, &built2.binds);
+    let r2 = q2.execute(&mut *tx).await.unwrap();
+    assert_eq!(r2.rows_affected(), 0);
+
+    // Roll back — atomic semantics demand row 1's successful UPDATE is undone.
+    tx.rollback().await.unwrap();
+
+    let row1: String = sqlx::query_scalar("SELECT email FROM edit_t3 WHERE id = 1")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(row1, "a@x", "row 1 must be unchanged after rollback");
+
+    let row2: String = sqlx::query_scalar("SELECT email FROM edit_t3 WHERE id = 2")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        row2, "other@x",
+        "row 2 must still reflect the concurrent change"
+    );
+}
