@@ -28,6 +28,12 @@ interface Props {
   row: Cell[];
   meta: ResultMeta;
   connId: string;
+  /**
+   * When rendering a pending-insert ("ghost") row whose PK values aren't known
+   * yet, the caller supplies the synthetic rowKey from the pending change so
+   * commits update that entry instead of colliding on `JSON.stringify([])`.
+   */
+  rowKeyOverride?: string;
 }
 
 function renderWidget(typeName: string, props: WidgetProps) {
@@ -68,16 +74,27 @@ function renderWidget(typeName: string, props: WidgetProps) {
   }
 }
 
-export function EditableCell({ value, columnIndex, row, meta, connId }: Props) {
+export function EditableCell({
+  value,
+  columnIndex,
+  row,
+  meta,
+  connId,
+  rowKeyOverride,
+}: Props) {
   const upsertEdit = usePendingChanges((s) => s.upsertEdit);
 
   const columnMeta = meta.columnTypes[columnIndex];
   const columnName = columnMeta?.name ?? "";
   const pkValues = meta.editable ? pkValuesOf(meta, row) : [];
-  const rowKey = meta.editable ? JSON.stringify(pkValues) : "";
+  const rowKey = rowKeyOverride
+    ? rowKeyOverride
+    : meta.editable
+      ? JSON.stringify(pkValues)
+      : "";
 
   const pendingEdit = usePendingChanges((s) => {
-    if (!meta.editable) return undefined;
+    if (!meta.editable && !rowKeyOverride) return undefined;
     const change = s.byRow.get(rowKey);
     return change?.edits.find((e) => e.column === columnName);
   });
@@ -105,6 +122,7 @@ export function EditableCell({ value, columnIndex, row, meta, connId }: Props) {
           next,
           capturedRow: row,
           capturedColumns: meta.columnTypes.map((c) => c.name),
+          rowKey: rowKeyOverride,
         });
       }
       setEditing(false);

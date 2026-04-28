@@ -12,11 +12,34 @@ interface UpsertEditArgs {
   next: Cell;
   capturedRow: Cell[];
   capturedColumns: string[];
+  /**
+   * Optional explicit rowKey override. Used by ghost (insert) rows whose
+   * `pkValues` are empty — `JSON.stringify([])` would collide on `"[]"`,
+   * so the inserted row carries its own synthetic key (`__insert_…`).
+   */
+  rowKey?: string;
+}
+
+interface InsertRowArgs {
+  table: { schema: string; name: string };
+  pkColumns: string[];
+  defaults: Record<string, Cell>;
+  capturedColumns: string[];
+}
+
+interface DeleteRowArgs {
+  table: { schema: string; name: string };
+  pkColumns: string[];
+  pkValues: Cell[];
+  capturedRow: Cell[];
+  capturedColumns: string[];
 }
 
 interface PendingChangesStore {
   byRow: Map<string, PendingChange>;
   upsertEdit(args: UpsertEditArgs): void;
+  insertRow(args: InsertRowArgs): void;
+  deleteRow(args: DeleteRowArgs): void;
   revertRow(rowKey: string): void;
   revertAll(): void;
   list(): PendingChange[];
@@ -28,8 +51,32 @@ export const usePendingChanges = create<PendingChangesStore>((set, get) => ({
   upsertEdit(args) {
     set((s) => {
       const next = new Map(s.byRow);
-      const rowKey = JSON.stringify(args.pkValues);
+      const rowKey = args.rowKey ?? JSON.stringify(args.pkValues);
       const existing = next.get(rowKey);
+      // For ghost rows (op === "insert"), edits store the staged column values
+      // directly; we update in place so the insert payload reflects the latest
+      // user input without flipping the op back to "update".
+      if (existing && existing.op === "insert") {
+        const idx = existing.edits.findIndex((e) => e.column === args.column);
+        const editEntry = {
+          column: args.column,
+          original: args.original,
+          next: args.next,
+        };
+        if (idx >= 0) {
+          existing.edits[idx] = editEntry;
+        } else {
+          existing.edits.push(editEntry);
+        }
+        // Keep capturedRow in sync so build_insert can read defaults from it.
+        const colIdx = existing.capturedColumns.indexOf(args.column);
+        if (colIdx >= 0) {
+          existing.capturedRow = existing.capturedRow.slice();
+          existing.capturedRow[colIdx] = args.next;
+        }
+        next.set(rowKey, existing);
+        return { byRow: next };
+      }
       // capturedRow/capturedColumns are snapshot-at-first-edit semantics:
       // optimistic-concurrency relies on the row state when the user started
       // editing, not the latest server state. We deliberately don't refresh
@@ -71,6 +118,47 @@ export const usePendingChanges = create<PendingChangesStore>((set, get) => ({
         change.edits.push(editEntry);
       }
       next.set(rowKey, change);
+      return { byRow: next };
+    });
+  },
+  insertRow({ table, pkColumns, defaults, capturedColumns }) {
+    set((s) => {
+      const next = new Map(s.byRow);
+      const rowKey = `__insert_${Math.random().toString(36).slice(2, 8)}`;
+      const change: PendingChange = {
+        rowKey,
+        table,
+        pk: { columns: pkColumns, values: [] },
+        edits: capturedColumns.map((col) => ({
+          column: col,
+          original: { kind: "Null" },
+          next: defaults[col] ?? { kind: "Null" },
+        })),
+        op: "insert",
+        capturedRow: capturedColumns.map(
+          (col) => defaults[col] ?? { kind: "Null" },
+        ),
+        capturedColumns,
+        capturedAt: Date.now(),
+      };
+      next.set(rowKey, change);
+      return { byRow: next };
+    });
+  },
+  deleteRow({ table, pkColumns, pkValues, capturedRow, capturedColumns }) {
+    set((s) => {
+      const next = new Map(s.byRow);
+      const rowKey = JSON.stringify(pkValues);
+      next.set(rowKey, {
+        rowKey,
+        table,
+        pk: { columns: pkColumns, values: pkValues },
+        edits: [],
+        op: "delete",
+        capturedRow,
+        capturedColumns,
+        capturedAt: Date.now(),
+      });
       return { byRow: next };
     });
   },

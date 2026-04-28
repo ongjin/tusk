@@ -92,6 +92,23 @@ export function ResultsHeader({ result, error, busy, connId }: Props) {
               <option value="strict">Strict</option>
             </select>
           )}
+          {result.meta.editable && result.meta.table && (
+            <button
+              type="button"
+              onClick={() =>
+                usePendingChanges.getState().insertRow({
+                  table: result.meta.table!,
+                  pkColumns: result.meta.pkColumns,
+                  defaults: {},
+                  capturedColumns: result.meta.columnTypes.map((c) => c.name),
+                })
+              }
+              className="border-input hover:bg-accent rounded-sm border px-2 py-0.5 text-xs"
+              title="Insert a new row"
+            >
+              + Row
+            </button>
+          )}
           <PendingBadge
             onPreview={() => setShowPreview(true)}
             onSubmit={() => setShowPreview(true)}
