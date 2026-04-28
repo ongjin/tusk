@@ -8,6 +8,7 @@ use crate::commands::sqlast::{parse_select_target, NotEditableReason, ParsedSele
 use crate::db::decoder::{columns_of, decode_row, Cell, ColumnMeta};
 use crate::db::pg_meta::{fetch_table_meta, FkRef, MetaCache};
 use crate::db::pool::ConnectionRegistry;
+use crate::db::state::{HistoryEntry, StateStore};
 use crate::errors::{TuskError, TuskResult};
 
 #[derive(Debug, Serialize)]
@@ -53,17 +54,39 @@ pub struct ColumnTypeMeta {
 pub async fn execute_query(
     registry: State<'_, ConnectionRegistry>,
     meta_cache: State<'_, MetaCache>,
+    store: State<'_, StateStore>,
     connection_id: String,
     sql: String,
 ) -> TuskResult<QueryResult> {
     let pool = registry.pool(&connection_id)?;
     let started = Instant::now();
-    let rows = sqlx::query(&sql)
-        .fetch_all(&pool)
-        .await
-        .map_err(|e| TuskError::Query(e.to_string()))?;
+    let result = sqlx::query(&sql).fetch_all(&pool).await;
     let duration_ms = started.elapsed().as_millis();
+    let preview: String = sql.chars().take(200).collect();
 
+    let (status, err_msg, rc): (&str, Option<String>, Option<i64>) = match &result {
+        Ok(rows) => ("ok", None, Some(rows.len() as i64)),
+        Err(e) => ("error", Some(e.to_string()), None),
+    };
+    let entry_id = uuid::Uuid::new_v4().to_string();
+    if let Err(history_err) = store.insert_history_entry(&HistoryEntry {
+        id: entry_id,
+        conn_id: connection_id.clone(),
+        source: "editor".into(),
+        tx_id: None,
+        sql_preview: preview,
+        sql_full: Some(sql.clone()),
+        started_at: chrono::Utc::now().timestamp_millis(),
+        duration_ms: duration_ms as i64,
+        row_count: rc,
+        status: status.into(),
+        error_message: err_msg,
+        statement_count: 1,
+    }) {
+        eprintln!("failed to record history entry: {history_err}");
+    }
+
+    let rows = result.map_err(|e| TuskError::Query(e.to_string()))?;
     let columns = rows.first().map(columns_of).unwrap_or_default();
     let row_count = rows.len();
     let mut data = Vec::with_capacity(row_count);
