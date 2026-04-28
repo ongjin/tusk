@@ -4,6 +4,10 @@
 // hex bytea, NULL, etc.) — used to build human-readable preview SQL that
 // matches what the parameterized executor will actually run. Implementation
 // lands in Task 2.
+//
+// Trust model: this function assumes string-payload variants (`Bigint`,
+// `Numeric`, `Unknown`) come from the typed decoder. It does not validate
+// them against PG grammar. Do not feed it user-supplied SQL fragments.
 
 use crate::db::decoder::Cell;
 use std::fmt::Write;
@@ -62,7 +66,13 @@ pub fn to_literal(cell: &Cell) -> String {
                 if i > 0 {
                     inner.push(',');
                 }
-                inner.push_str(&format_float(*v as f64));
+                let f = *v as f64;
+                if !f.is_finite() {
+                    eprintln!("pg_literals: vector element {i} is non-finite ({f}); emitting 0");
+                    inner.push('0');
+                } else {
+                    inner.push_str(&format_float(f));
+                }
             }
             inner.push(']');
             format!("{}::vector", quote_string(&inner))
@@ -100,7 +110,17 @@ fn quote_bytea(b64: &str) -> String {
 }
 
 fn format_float(v: f64) -> String {
-    if v.fract() == 0.0 && v.is_finite() && v.abs() < 1e16 {
+    if v.is_nan() {
+        return "'NaN'::float8".to_string();
+    }
+    if v.is_infinite() {
+        return if v.is_sign_negative() {
+            "'-Infinity'::float8".to_string()
+        } else {
+            "'Infinity'::float8".to_string()
+        };
+    }
+    if v.fract() == 0.0 && v.abs() < 1e16 {
         format!("{}", v as i64)
     } else {
         format!("{v}")
@@ -264,5 +284,22 @@ mod tests {
             text: "raw".into(),
         };
         assert_eq!(to_literal(&cell), "'raw'::text");
+    }
+
+    #[test]
+    fn float_nan_uses_quoted_form() {
+        assert_eq!(to_literal(&Cell::Float(f64::NAN)), "'NaN'::float8");
+    }
+
+    #[test]
+    fn float_infinity_uses_quoted_forms() {
+        assert_eq!(
+            to_literal(&Cell::Float(f64::INFINITY)),
+            "'Infinity'::float8"
+        );
+        assert_eq!(
+            to_literal(&Cell::Float(f64::NEG_INFINITY)),
+            "'-Infinity'::float8"
+        );
     }
 }
