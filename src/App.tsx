@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { ConnectionForm } from "@/features/connections/ConnectionForm";
 import { ConnectionList } from "@/features/connections/ConnectionList";
+import { HistoryPalette } from "@/features/history/HistoryPalette";
 import { SchemaTree } from "@/features/schema/SchemaTree";
 import { EditorPane } from "@/features/editor/EditorPane";
 import { AutoCommitToggle } from "@/features/transactions/AutoCommitToggle";
@@ -32,6 +33,21 @@ function App() {
     const tab = tabs.find((t) => t.id === activeTabId);
     return tab?.connectionId ?? activeConnectionId ?? undefined;
   }, [tabs, activeTabId, activeConnectionId]);
+
+  // Cmd/Ctrl+P toggles the history palette (browser default is "print" —
+  // preventDefault is required).
+  const [showPalette, setShowPalette] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const isMod = e.metaKey || e.ctrlKey;
+      if (isMod && e.code === "KeyP" && !e.shiftKey) {
+        e.preventDefault();
+        setShowPalette((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Global keyboard shortcuts for tx commit / rollback.
   useEffect(() => {
@@ -182,6 +198,16 @@ function App() {
   return (
     <div className="bg-background text-foreground grid h-full grid-cols-[280px_1fr]">
       <ConfirmModalHost />
+      {showPalette && (
+        <HistoryPalette
+          onClose={() => setShowPalette(false)}
+          onPick={(sql) => {
+            const t = useTabs.getState();
+            if (t.activeId) t.updateSql(t.activeId, sql);
+            setShowPalette(false);
+          }}
+        />
+      )}
       <aside className="border-border flex flex-col border-r">
         <div className="flex items-center justify-between p-3">
           <h1 className="text-lg font-semibold">Tusk</h1>
