@@ -18,11 +18,8 @@ pub struct SshHost {
     pub proxy_jump: Option<String>,
 }
 
-pub fn config_path() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_default()
-        .join(".ssh")
-        .join("config")
+pub fn config_path() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| h.join(".ssh").join("config"))
 }
 
 /// Extracts non-wildcard `Host` entries from a config string.
@@ -92,10 +89,12 @@ pub fn resolve_via_ssh_g(alias: &str) -> TuskResult<Option<SshHost>> {
 }
 
 pub fn list_known_hosts() -> TuskResult<Vec<SshHost>> {
-    let path = config_path();
+    let Some(path) = config_path() else {
+        return Err(TuskError::Ssh("could not determine home directory".into()));
+    };
     let aliases = match fs::read_to_string(&path) {
         Ok(text) => extract_aliases(&text),
-        Err(_) => return Ok(Vec::new()),
+        Err(_) => return Ok(Vec::new()), // missing ~/.ssh/config is fine
     };
 
     let mut out = Vec::new();
