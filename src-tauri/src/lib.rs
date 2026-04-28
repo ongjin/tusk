@@ -1,4 +1,6 @@
 mod commands;
+pub mod errors;
+pub mod secrets;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
