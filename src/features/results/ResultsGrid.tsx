@@ -8,11 +8,11 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-import type { QueryResult } from "@/lib/types";
+import type { Cell, QueryResult } from "@/lib/types";
 
-import { Cell } from "./cells";
+import { renderCell } from "./cells";
 
-type Row = Record<string, unknown>;
+type Row = Record<string, Cell>;
 
 export function ResultsGrid({ result }: { result: QueryResult }) {
   const data = useMemo<Row[]>(
@@ -35,11 +35,11 @@ export function ResultsGrid({ result }: { result: QueryResult }) {
               {c.name}
             </span>
             <span className="text-muted-foreground text-[10px]">
-              {c.type_name}
+              {c.typeName}
             </span>
           </div>
         ),
-        cell: (info) => <Cell value={info.getValue()} type={c.type_name} />,
+        cell: (info) => renderCell(info.getValue() as Cell),
       })),
     [result.columns],
   );

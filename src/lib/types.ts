@@ -39,14 +39,16 @@ export interface ConnectionListItem extends ConnectionRecord {
 
 export interface ColumnMeta {
   name: string;
-  type_name: string;
+  oid: number;
+  typeName: string;
 }
 
 export interface QueryResult {
   columns: ColumnMeta[];
-  rows: Array<Array<unknown>>;
+  rows: Cell[][];
   durationMs: number;
   rowCount: number;
+  meta?: ResultMeta;
 }
 
 export interface TuskErrorPayload {
