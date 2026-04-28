@@ -7,6 +7,7 @@ use sqlx::postgres::{PgConnectOptions, PgPoolOptions, PgSslMode};
 use sqlx::PgPool;
 
 use crate::errors::{TuskError, TuskResult};
+use crate::ssh::tunnel::TunnelHandle;
 
 #[derive(Debug, Clone)]
 pub struct DirectConnectSpec {
@@ -20,12 +21,8 @@ pub struct DirectConnectSpec {
 
 pub struct ActiveConnection {
     pub pool: PgPool,
-    // Tunnel handle slot — populated in Task 6.
-    pub tunnel: Option<TunnelSlot>,
+    pub tunnel: Option<TunnelHandle>,
 }
-
-/// Placeholder until Task 6 adds the real tunnel handle.
-pub struct TunnelSlot;
 
 #[derive(Default)]
 pub struct ConnectionRegistry {
@@ -61,6 +58,43 @@ impl ConnectionRegistry {
         guard.insert(
             connection_id.to_string(),
             ActiveConnection { pool, tunnel: None },
+        );
+        Ok(())
+    }
+
+    pub async fn connect_tunneled(
+        &self,
+        connection_id: &str,
+        spec: DirectConnectSpec,
+        tunnel: TunnelHandle,
+    ) -> TuskResult<()> {
+        // Tunnel is already up, so we point at 127.0.0.1:tunnel.local_port.
+        let mut tcp_spec = spec;
+        tcp_spec.host = "127.0.0.1".into();
+        tcp_spec.port = tunnel.local_port;
+
+        let opts = sqlx::postgres::PgConnectOptions::new()
+            .host(&tcp_spec.host)
+            .port(tcp_spec.port)
+            .username(&tcp_spec.user)
+            .password(&tcp_spec.password)
+            .database(&tcp_spec.database)
+            .ssl_mode(parse_ssl_mode(&tcp_spec.ssl_mode)?);
+
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(5)
+            .acquire_timeout(std::time::Duration::from_secs(10))
+            .connect_with(opts)
+            .await
+            .map_err(|e| TuskError::Connection(e.to_string()))?;
+
+        let mut guard = self.inner.lock().expect("registry poisoned");
+        guard.insert(
+            connection_id.to_string(),
+            ActiveConnection {
+                pool,
+                tunnel: Some(tunnel),
+            },
         );
         Ok(())
     }

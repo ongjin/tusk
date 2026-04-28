@@ -6,6 +6,7 @@ use crate::db::pool::{ConnectionRegistry, DirectConnectSpec};
 use crate::db::state::{ConnectionRecord, NewConnection, SshKind, StateStore};
 use crate::errors::{TuskError, TuskResult};
 use crate::secrets;
+use crate::ssh::tunnel::{open_tunnel, SshTarget, TunnelSpec};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -86,9 +87,60 @@ pub async fn connect(
             registry.connect_direct(&id, spec).await?;
             Ok(())
         }
-        SshKind::Alias | SshKind::Manual => {
-            // Wired up in Task 6.
-            Err(TuskError::Tunnel("SSH-backed connect not yet wired".into()))
+        SshKind::Alias => {
+            let alias = record
+                .ssh_alias
+                .clone()
+                .ok_or_else(|| TuskError::Tunnel("ssh_alias missing".into()))?;
+            let tunnel = open_tunnel(TunnelSpec {
+                target: SshTarget::Alias(alias),
+                remote_host: record.host.clone(),
+                remote_port: record.port,
+            })
+            .await?;
+            let spec = DirectConnectSpec {
+                host: record.host,
+                port: record.port,
+                user: record.db_user,
+                password,
+                database: record.database,
+                ssl_mode: record.ssl_mode,
+            };
+            registry.connect_tunneled(&id, spec, tunnel).await?;
+            Ok(())
+        }
+        SshKind::Manual => {
+            let host = record
+                .ssh_host
+                .clone()
+                .ok_or_else(|| TuskError::Tunnel("ssh_host missing".into()))?;
+            let port = record.ssh_port.unwrap_or(22);
+            let user = record
+                .ssh_user
+                .clone()
+                .ok_or_else(|| TuskError::Tunnel("ssh_user missing".into()))?;
+            let key_path = record.ssh_key_path.clone();
+            let tunnel = open_tunnel(TunnelSpec {
+                target: SshTarget::Manual {
+                    host,
+                    port,
+                    user,
+                    key_path,
+                },
+                remote_host: record.host.clone(),
+                remote_port: record.port,
+            })
+            .await?;
+            let spec = DirectConnectSpec {
+                host: record.host,
+                port: record.port,
+                user: record.db_user,
+                password,
+                database: record.database,
+                ssl_mode: record.ssl_mode,
+            };
+            registry.connect_tunneled(&id, spec, tunnel).await?;
+            Ok(())
         }
     }
 }
