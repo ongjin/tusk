@@ -5,3 +5,4 @@ pub mod query;
 pub mod schema;
 pub mod sqlast;
 pub mod ssh;
+pub mod transactions;

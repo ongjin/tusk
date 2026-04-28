@@ -58,7 +58,7 @@ pub async fn delete_connection(
     meta_cache: State<'_, MetaCache>,
     id: String,
 ) -> TuskResult<()> {
-    registry.disconnect(&id)?;
+    registry.disconnect(&id).await?;
     meta_cache.invalidate_conn(&id);
     secrets::delete_password(&id)?;
     store.delete(&id)?;
@@ -163,7 +163,7 @@ pub async fn disconnect(
     meta_cache: State<'_, MetaCache>,
     id: String,
 ) -> TuskResult<()> {
-    registry.disconnect(&id)?;
+    registry.disconnect(&id).await?;
     meta_cache.invalidate_conn(&id);
     Ok(())
 }
