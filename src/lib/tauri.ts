@@ -11,6 +11,8 @@ import type {
 } from "./types";
 import { TuskError } from "./types";
 
+// Wire format: { kind: string, data?: unknown }. Struct variants
+// (Conflict, UnsupportedEditType) carry typed objects in `data`.
 async function invoke<T>(
   cmd: string,
   args?: Record<string, unknown>,
@@ -18,7 +20,7 @@ async function invoke<T>(
   try {
     return await rawInvoke<T>(cmd, args);
   } catch (e) {
-    if (e && typeof e === "object" && "kind" in e && "message" in e) {
+    if (e && typeof e === "object" && "kind" in e) {
       throw new TuskError(e as TuskErrorPayload);
     }
     throw e;

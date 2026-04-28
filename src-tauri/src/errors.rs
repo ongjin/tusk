@@ -3,7 +3,7 @@ use serde::Serialize;
 use thiserror::Error;
 
 #[derive(Error, Debug, Serialize)]
-#[serde(tag = "kind", content = "message")]
+#[serde(tag = "kind", content = "data")]
 pub enum TuskError {
     #[error("Connection failed: {0}")]
     Connection(String),
@@ -19,6 +19,24 @@ pub enum TuskError {
     Secrets(String),
     #[error("Internal error: {0}")]
     Internal(String),
+    #[error("Editing failed: {0}")]
+    Editing(String),
+    #[error("Conflict on batch")]
+    Conflict {
+        batch_id: String,
+        executed_sql: String,
+        current: serde_json::Value,
+    },
+    #[error("Transaction error: {0}")]
+    Tx(String),
+    #[error("Transaction aborted — only ROLLBACK is allowed")]
+    TxAborted,
+    #[error("Query cancelled")]
+    QueryCancelled,
+    #[error("History error: {0}")]
+    History(String),
+    #[error("Unsupported column type for editing: oid={oid}, name={name}")]
+    UnsupportedEditType { oid: u32, name: String },
 }
 
 impl From<anyhow::Error> for TuskError {
@@ -37,7 +55,7 @@ mod tests {
     fn serialize_uses_tagged_repr() {
         let err = TuskError::Connection("nope".into());
         let json = serde_json::to_string(&err).unwrap();
-        assert_eq!(json, r#"{"kind":"Connection","message":"nope"}"#);
+        assert_eq!(json, r#"{"kind":"Connection","data":"nope"}"#);
     }
 
     #[test]
@@ -45,5 +63,24 @@ mod tests {
         let any = anyhow::anyhow!("boom");
         let err: TuskError = any.into();
         assert!(matches!(err, TuskError::Internal(_)));
+    }
+
+    #[test]
+    fn serialize_conflict_carries_payload() {
+        let err = TuskError::Conflict {
+            batch_id: "b1".into(),
+            executed_sql: "UPDATE t ...".into(),
+            current: serde_json::json!({ "id": 1 }),
+        };
+        let json = serde_json::to_string(&err).unwrap();
+        assert!(json.contains("\"kind\":\"Conflict\""));
+        assert!(json.contains("\"batch_id\":\"b1\""));
+    }
+
+    #[test]
+    fn tx_aborted_serializes_as_tag_only() {
+        let err = TuskError::TxAborted;
+        let json = serde_json::to_string(&err).unwrap();
+        assert!(json.contains("\"kind\":\"TxAborted\""));
     }
 }
