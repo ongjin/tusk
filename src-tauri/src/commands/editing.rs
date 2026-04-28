@@ -7,9 +7,12 @@
 
 use serde::{Deserialize, Serialize};
 use sqlx::Postgres;
+use tauri::State;
 
-use crate::db::decoder::Cell;
+use crate::db::decoder::{columns_of, decode_row, Cell};
 use crate::db::pg_literals::to_literal;
+use crate::db::pool::ConnectionRegistry;
+use crate::db::state::{HistoryEntry, HistoryStatement, StateStore};
 use crate::errors::{TuskError, TuskResult};
 
 #[derive(Debug, Deserialize)]
@@ -288,6 +291,354 @@ pub fn bind_cells<'q>(
         };
     }
     q
+}
+
+/// Build the parameterized + preview SQL for a batch using the chosen mode.
+/// Pure — no DB I/O.
+fn build_for_batch(b: &PendingBatch, mode: ConflictMode) -> TuskResult<BuiltUpdate> {
+    match b.op {
+        PendingOp::Update => build_update(b, mode),
+        PendingOp::Insert => build_insert(b),
+        PendingOp::Delete => build_delete(b, mode),
+    }
+}
+
+/// Preview the rendered (literal-inlined) SQL for each batch — no execution.
+#[tauri::command]
+pub async fn preview_pending_changes(
+    batches: Vec<PendingBatch>,
+    mode: ConflictMode,
+) -> TuskResult<Vec<BatchResult>> {
+    let mut out = Vec::with_capacity(batches.len());
+    for b in &batches {
+        match build_for_batch(b, mode) {
+            Ok(built) => out.push(BatchResult::Ok {
+                batch_id: b.batch_id.clone(),
+                affected: 0,
+                executed_sql: built.preview_sql,
+            }),
+            Err(e) => out.push(BatchResult::Error {
+                batch_id: b.batch_id.clone(),
+                executed_sql: String::new(),
+                message: e.to_string(),
+            }),
+        }
+    }
+    Ok(out)
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubmitResponse {
+    pub batches: Vec<BatchResult>,
+}
+
+/// Fetch the current server-side row state for a conflict report.
+/// Returns the row decoded as `Vec<Cell>` aligned with `b.captured_columns`.
+async fn fetch_current<'e, E>(executor: E, b: &PendingBatch) -> Option<Vec<Cell>>
+where
+    E: sqlx::Executor<'e, Database = Postgres>,
+{
+    if b.captured_columns.is_empty() || b.pk_columns.is_empty() {
+        return None;
+    }
+    let table_ident = format!("\"{}\".\"{}\"", b.table.schema, b.table.name);
+    let cols: Vec<String> = b
+        .captured_columns
+        .iter()
+        .map(|c| format!("\"{}\"", c))
+        .collect();
+    let mut where_parts = Vec::with_capacity(b.pk_columns.len());
+    for (i, pk) in b.pk_columns.iter().enumerate() {
+        where_parts.push(format!("\"{}\" IS NOT DISTINCT FROM ${}", pk, i + 1));
+    }
+    let sql = format!(
+        "SELECT {} FROM {} WHERE {} LIMIT 1",
+        cols.join(", "),
+        table_ident,
+        where_parts.join(" AND ")
+    );
+    let q = sqlx::query(&sql);
+    let q = bind_cells(q, &b.pk_values);
+    match q.fetch_optional(executor).await {
+        Ok(Some(row)) => {
+            let cols_meta = columns_of(&row);
+            Some(decode_row(&row, &cols_meta))
+        }
+        _ => None,
+    }
+}
+
+/// Submit pending changes atomically. In-tx submits run on the sticky
+/// connection and append to the existing history entry; out-of-tx submits
+/// open an implicit transaction and create a new history entry. A single
+/// conflict stops the batch (rollback for out-of-tx; just stop for in-tx).
+#[tauri::command]
+pub async fn submit_pending_changes(
+    registry: State<'_, ConnectionRegistry>,
+    store: State<'_, StateStore>,
+    connection_id: String,
+    batches: Vec<PendingBatch>,
+    mode: ConflictMode,
+) -> TuskResult<SubmitResponse> {
+    let active = registry.handle(&connection_id)?;
+
+    let mut slot = active.tx_slot.lock().await;
+    if slot.is_some() {
+        // ----- In-tx path: execute on the sticky conn, append history -----
+        let sticky = slot.as_mut().expect("checked");
+        let entry_id = sticky.history_entry_id.clone();
+        let mut results: Vec<BatchResult> = Vec::with_capacity(batches.len());
+        let mut stop = false;
+        for b in &batches {
+            if stop {
+                break;
+            }
+            let built = match build_for_batch(b, mode) {
+                Ok(v) => v,
+                Err(e) => {
+                    results.push(BatchResult::Error {
+                        batch_id: b.batch_id.clone(),
+                        executed_sql: String::new(),
+                        message: e.to_string(),
+                    });
+                    stop = true;
+                    continue;
+                }
+            };
+            let started = std::time::Instant::now();
+            let q = sqlx::query(&built.parameterized_sql);
+            let q = bind_cells(q, &built.binds);
+            let r = q.execute(&mut *sticky.conn).await;
+            let duration_ms = started.elapsed().as_millis() as i64;
+            sticky.statement_count += 1;
+            let ordinal = (sticky.statement_count.saturating_sub(1)) as i64;
+            match r {
+                Ok(done) => {
+                    let affected = done.rows_affected();
+                    if affected == 0 && b.op != PendingOp::Insert {
+                        let current = fetch_current(&mut *sticky.conn, b)
+                            .await
+                            .unwrap_or_default();
+                        let _ = store.append_history_statement(&HistoryStatement {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            entry_id: entry_id.clone(),
+                            ordinal,
+                            sql: built.preview_sql.chars().take(2000).collect(),
+                            duration_ms,
+                            row_count: Some(0),
+                            status: "error".into(),
+                            error_message: Some("conflict".into()),
+                        });
+                        results.push(BatchResult::Conflict {
+                            batch_id: b.batch_id.clone(),
+                            executed_sql: built.preview_sql,
+                            current,
+                        });
+                        stop = true;
+                    } else {
+                        let _ = store.append_history_statement(&HistoryStatement {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            entry_id: entry_id.clone(),
+                            ordinal,
+                            sql: built.preview_sql.chars().take(2000).collect(),
+                            duration_ms,
+                            row_count: Some(affected as i64),
+                            status: "ok".into(),
+                            error_message: None,
+                        });
+                        results.push(BatchResult::Ok {
+                            batch_id: b.batch_id.clone(),
+                            affected,
+                            executed_sql: built.preview_sql,
+                        });
+                    }
+                }
+                Err(e) => {
+                    let msg = e.to_string();
+                    let _ = store.append_history_statement(&HistoryStatement {
+                        id: uuid::Uuid::new_v4().to_string(),
+                        entry_id: entry_id.clone(),
+                        ordinal,
+                        sql: built.preview_sql.chars().take(2000).collect(),
+                        duration_ms,
+                        row_count: None,
+                        status: "error".into(),
+                        error_message: Some(msg.clone()),
+                    });
+                    results.push(BatchResult::Error {
+                        batch_id: b.batch_id.clone(),
+                        executed_sql: built.preview_sql,
+                        message: msg,
+                    });
+                    stop = true;
+                }
+            }
+        }
+        return Ok(SubmitResponse { batches: results });
+    }
+
+    // ----- Out-of-tx path: implicit transaction with rollback on conflict ----
+    drop(slot);
+
+    let entry_id = uuid::Uuid::new_v4().to_string();
+    let started_at_ms = chrono::Utc::now().timestamp_millis();
+    let preview_for_entry = format!("[submit {} batch(es)]", batches.len());
+    store.insert_history_entry(&HistoryEntry {
+        id: entry_id.clone(),
+        conn_id: connection_id.clone(),
+        source: "inline".into(),
+        tx_id: None,
+        sql_preview: preview_for_entry,
+        sql_full: None,
+        started_at: started_at_ms,
+        duration_ms: 0,
+        row_count: None,
+        status: "open".into(),
+        error_message: None,
+        statement_count: 0,
+    })?;
+
+    let started = std::time::Instant::now();
+    let mut tx = active
+        .pool
+        .begin()
+        .await
+        .map_err(|e| TuskError::Editing(e.to_string()))?;
+
+    let mut results: Vec<BatchResult> = Vec::with_capacity(batches.len());
+    let mut conflict_or_error = false;
+    let mut stmt_count: i64 = 0;
+    let mut total_affected: i64 = 0;
+
+    for b in &batches {
+        if conflict_or_error {
+            break;
+        }
+        let built = match build_for_batch(b, mode) {
+            Ok(v) => v,
+            Err(e) => {
+                results.push(BatchResult::Error {
+                    batch_id: b.batch_id.clone(),
+                    executed_sql: String::new(),
+                    message: e.to_string(),
+                });
+                conflict_or_error = true;
+                continue;
+            }
+        };
+        let stmt_started = std::time::Instant::now();
+        let q = sqlx::query(&built.parameterized_sql);
+        let q = bind_cells(q, &built.binds);
+        let r = q.execute(&mut *tx).await;
+        let duration_ms = stmt_started.elapsed().as_millis() as i64;
+        let ordinal = stmt_count;
+        stmt_count += 1;
+        match r {
+            Ok(done) => {
+                let affected = done.rows_affected();
+                if affected == 0 && b.op != PendingOp::Insert {
+                    let current = fetch_current(&mut *tx, b).await.unwrap_or_default();
+                    let _ = store.append_history_statement(&HistoryStatement {
+                        id: uuid::Uuid::new_v4().to_string(),
+                        entry_id: entry_id.clone(),
+                        ordinal,
+                        sql: built.preview_sql.chars().take(2000).collect(),
+                        duration_ms,
+                        row_count: Some(0),
+                        status: "error".into(),
+                        error_message: Some("conflict".into()),
+                    });
+                    results.push(BatchResult::Conflict {
+                        batch_id: b.batch_id.clone(),
+                        executed_sql: built.preview_sql,
+                        current,
+                    });
+                    conflict_or_error = true;
+                } else {
+                    total_affected += affected as i64;
+                    let _ = store.append_history_statement(&HistoryStatement {
+                        id: uuid::Uuid::new_v4().to_string(),
+                        entry_id: entry_id.clone(),
+                        ordinal,
+                        sql: built.preview_sql.chars().take(2000).collect(),
+                        duration_ms,
+                        row_count: Some(affected as i64),
+                        status: "ok".into(),
+                        error_message: None,
+                    });
+                    results.push(BatchResult::Ok {
+                        batch_id: b.batch_id.clone(),
+                        affected,
+                        executed_sql: built.preview_sql,
+                    });
+                }
+            }
+            Err(e) => {
+                let msg = e.to_string();
+                let _ = store.append_history_statement(&HistoryStatement {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    entry_id: entry_id.clone(),
+                    ordinal,
+                    sql: built.preview_sql.chars().take(2000).collect(),
+                    duration_ms,
+                    row_count: None,
+                    status: "error".into(),
+                    error_message: Some(msg.clone()),
+                });
+                results.push(BatchResult::Error {
+                    batch_id: b.batch_id.clone(),
+                    executed_sql: built.preview_sql,
+                    message: msg,
+                });
+                conflict_or_error = true;
+            }
+        }
+    }
+
+    let total_duration = started.elapsed().as_millis() as i64;
+    let final_status = if conflict_or_error {
+        if let Err(e) = tx.rollback().await {
+            eprintln!("submit_pending_changes: rollback failed: {e}");
+        }
+        "rolled_back"
+    } else {
+        if let Err(e) = tx.commit().await {
+            let msg = e.to_string();
+            // Surface commit failure as a final Error result if not already.
+            if results
+                .last()
+                .map(|r| !matches!(r, BatchResult::Error { .. }))
+                .unwrap_or(true)
+            {
+                results.push(BatchResult::Error {
+                    batch_id: String::new(),
+                    executed_sql: "COMMIT".into(),
+                    message: msg.clone(),
+                });
+            }
+            store.update_history_entry_finalize(
+                &entry_id,
+                total_duration,
+                Some(total_affected),
+                "error",
+                Some(&msg),
+                stmt_count,
+            )?;
+            return Ok(SubmitResponse { batches: results });
+        }
+        "ok"
+    };
+    store.update_history_entry_finalize(
+        &entry_id,
+        total_duration,
+        Some(total_affected),
+        final_status,
+        None,
+        stmt_count,
+    )?;
+
+    Ok(SubmitResponse { batches: results })
 }
 
 #[cfg(test)]
