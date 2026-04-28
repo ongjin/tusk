@@ -92,10 +92,7 @@ pub fn lookup_one(
     Ok(r)
 }
 
-pub fn load_all(
-    store: &StateStore,
-    conn_id: &str,
-) -> TuskResult<Vec<StoredEmbedding>> {
+pub fn load_all(store: &StateStore, conn_id: &str) -> TuskResult<Vec<StoredEmbedding>> {
     let conn = store.lock();
     let mut stmt = conn
         .prepare(
@@ -146,11 +143,7 @@ pub struct ScoredTable {
     pub similarity: f32,
 }
 
-pub fn cosine_top_k(
-    query: &[f32],
-    rows: &[StoredEmbedding],
-    k: usize,
-) -> Vec<ScoredTable> {
+pub fn cosine_top_k(query: &[f32], rows: &[StoredEmbedding], k: usize) -> Vec<ScoredTable> {
     let q_norm = norm(query);
     if q_norm == 0.0 {
         return Vec::new();

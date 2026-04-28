@@ -47,11 +47,7 @@ pub async fn sync_schema_index(
         "ollama" => None,
         other => secrets::ai_get(other)?,
     };
-    let provider = EmbeddingProvider::from_id(
-        &embedding_provider,
-        api_key,
-        base_url,
-    )?;
+    let provider = EmbeddingProvider::from_id(&embedding_provider, api_key, base_url)?;
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -142,10 +138,7 @@ pub async fn sync_schema_index(
 
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value)]
-pub fn schema_index_clear(
-    store: State<'_, StateStore>,
-    connection_id: String,
-) -> TuskResult<()> {
+pub fn schema_index_clear(store: State<'_, StateStore>, connection_id: String) -> TuskResult<()> {
     delete_for_conn(&store, &connection_id)
 }
 
@@ -191,7 +184,10 @@ pub async fn schema_top_k(
     let rows = load_all(&store, &connection_id)?;
     let total = rows.len();
     if total == 0 {
-        return Ok(SchemaTopK { tables: Vec::new(), total_tables: 0 });
+        return Ok(SchemaTopK {
+            tables: Vec::new(),
+            total_tables: 0,
+        });
     }
     let api_key = match embedding_provider.as_str() {
         "ollama" => None,
@@ -219,7 +215,10 @@ pub async fn schema_top_k(
         let st = format!("{}.{}", row.schema, row.table).to_lowercase();
         let bare = row.table.to_lowercase();
         if tokens.iter().any(|t| *t == bare || *t == st) {
-            if !chosen.iter().any(|(s, t, _, _)| s == &row.schema && t == &row.table) {
+            if !chosen
+                .iter()
+                .any(|(s, t, _, _)| s == &row.schema && t == &row.table)
+            {
                 chosen.push((row.schema.clone(), row.table.clone(), 1.0, true));
             } else {
                 for c in chosen.iter_mut() {
@@ -243,5 +242,8 @@ pub async fn schema_top_k(
         });
     }
 
-    Ok(SchemaTopK { tables: out, total_tables: total })
+    Ok(SchemaTopK {
+        tables: out,
+        total_tables: total,
+    })
 }

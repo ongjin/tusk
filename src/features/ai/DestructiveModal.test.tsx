@@ -1,10 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 
-import {
-  DestructiveModalHost,
-  confirmDestructive,
-} from "./DestructiveModal";
+import { DestructiveModalHost, confirmDestructive } from "./DestructiveModal";
 
 afterEach(cleanup);
 
@@ -32,7 +29,12 @@ describe("DestructiveModal", () => {
     render(<DestructiveModalHost />);
     const promise = confirmDestructive({
       findings: [
-        { kind: "truncate", statementIndex: 0, message: "...", affectedObject: "x" },
+        {
+          kind: "truncate",
+          statementIndex: 0,
+          message: "...",
+          affectedObject: "x",
+        },
       ],
       sql: "TRUNCATE x",
       strict: false,
@@ -46,7 +48,12 @@ describe("DestructiveModal", () => {
     render(<DestructiveModalHost />);
     const promise = confirmDestructive({
       findings: [
-        { kind: "drop-table", statementIndex: 0, message: "...", affectedObject: "x" },
+        {
+          kind: "drop-table",
+          statementIndex: 0,
+          message: "...",
+          affectedObject: "x",
+        },
       ],
       sql: "DROP TABLE x",
       strict: true,
@@ -66,7 +73,12 @@ describe("DestructiveModal", () => {
     render(<DestructiveModalHost />);
     const args = {
       findings: [
-        { kind: "drop-table", statementIndex: 0, message: "...", affectedObject: "x" } as const,
+        {
+          kind: "drop-table",
+          statementIndex: 0,
+          message: "...",
+          affectedObject: "x",
+        } as const,
       ],
       sql: "DROP TABLE x",
       strict: true,

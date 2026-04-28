@@ -33,19 +33,21 @@ pub async fn list_user_tables(pool: &PgPool) -> TuskResult<Vec<(String, String, 
 
     let mut out = Vec::with_capacity(rows.len());
     for r in rows {
-        let n: String = r.try_get(0).map_err(|e| TuskError::SchemaIndex(e.to_string()))?;
-        let t: String = r.try_get(1).map_err(|e| TuskError::SchemaIndex(e.to_string()))?;
-        let oid: i32 = r.try_get(2).map_err(|e| TuskError::SchemaIndex(e.to_string()))?;
+        let n: String = r
+            .try_get(0)
+            .map_err(|e| TuskError::SchemaIndex(e.to_string()))?;
+        let t: String = r
+            .try_get(1)
+            .map_err(|e| TuskError::SchemaIndex(e.to_string()))?;
+        let oid: i32 = r
+            .try_get(2)
+            .map_err(|e| TuskError::SchemaIndex(e.to_string()))?;
         out.push((n, t, oid as u32));
     }
     Ok(out)
 }
 
-pub async fn build_table_ddl(
-    pool: &PgPool,
-    schema: &str,
-    table: &str,
-) -> TuskResult<TableDdl> {
+pub async fn build_table_ddl(pool: &PgPool, schema: &str, table: &str) -> TuskResult<TableDdl> {
     let cols = sqlx::query(
         "SELECT a.attname, format_type(a.atttypid, a.atttypmod), a.attnotnull,
                 pg_get_expr(d.adbin, d.adrelid),
@@ -65,9 +67,15 @@ pub async fn build_table_ddl(
 
     let mut ddl = format!("CREATE TABLE \"{schema}\".\"{table}\" (\n");
     for (i, r) in cols.iter().enumerate() {
-        let name: String = r.try_get(0).map_err(|e| TuskError::SchemaIndex(e.to_string()))?;
-        let ty: String = r.try_get(1).map_err(|e| TuskError::SchemaIndex(e.to_string()))?;
-        let notnull: bool = r.try_get(2).map_err(|e| TuskError::SchemaIndex(e.to_string()))?;
+        let name: String = r
+            .try_get(0)
+            .map_err(|e| TuskError::SchemaIndex(e.to_string()))?;
+        let ty: String = r
+            .try_get(1)
+            .map_err(|e| TuskError::SchemaIndex(e.to_string()))?;
+        let notnull: bool = r
+            .try_get(2)
+            .map_err(|e| TuskError::SchemaIndex(e.to_string()))?;
         let default: Option<String> = r.try_get(3).ok();
         let comment: Option<String> = r.try_get::<Option<String>, _>(4).ok().flatten();
         let mut line = format!("  \"{name}\" {ty}");
@@ -135,13 +143,11 @@ pub async fn build_table_ddl(
         }
     }
 
-    if let Ok(c) = sqlx::query(
-        "SELECT obj_description(($1 || '.' || $2)::regclass, 'pg_class')",
-    )
-    .bind(schema)
-    .bind(table)
-    .fetch_one(pool)
-    .await
+    if let Ok(c) = sqlx::query("SELECT obj_description(($1 || '.' || $2)::regclass, 'pg_class')")
+        .bind(schema)
+        .bind(table)
+        .fetch_one(pool)
+        .await
     {
         if let Ok(Some(comment)) = c.try_get::<Option<String>, _>(0) {
             ddl.push_str(&format!(

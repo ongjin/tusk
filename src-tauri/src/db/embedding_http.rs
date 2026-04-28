@@ -28,18 +28,13 @@ impl EmbeddingProvider {
     ) -> TuskResult<Self> {
         match provider_id {
             "openai" => Ok(Self::OpenAi {
-                api_key: api_key.ok_or_else(|| {
-                    TuskError::AiNotConfigured("openai".into())
-                })?,
+                api_key: api_key.ok_or_else(|| TuskError::AiNotConfigured("openai".into()))?,
             }),
             "gemini" => Ok(Self::Gemini {
-                api_key: api_key.ok_or_else(|| {
-                    TuskError::AiNotConfigured("gemini".into())
-                })?,
+                api_key: api_key.ok_or_else(|| TuskError::AiNotConfigured("gemini".into()))?,
             }),
             "ollama" => Ok(Self::Ollama {
-                base_url: base_url
-                    .unwrap_or_else(|| "http://localhost:11434".into()),
+                base_url: base_url.unwrap_or_else(|| "http://localhost:11434".into()),
             }),
             "anthropic" => Err(TuskError::Ai(
                 "Anthropic does not provide an embedding API".into(),
@@ -104,11 +99,7 @@ pub async fn embed_openai_at(
         .ok_or_else(|| TuskError::EmbeddingHttp("empty response".into()))
 }
 
-pub async fn embed_gemini_at(
-    client: &Client,
-    url: &str,
-    text: &str,
-) -> TuskResult<Vec<f32>> {
+pub async fn embed_gemini_at(client: &Client, url: &str, text: &str) -> TuskResult<Vec<f32>> {
     #[derive(Deserialize)]
     struct Resp {
         embedding: Inner,
