@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { Play } from "lucide-react";
 import { toast } from "sonner";
@@ -14,7 +14,9 @@ import { ResultsGrid } from "@/features/results/ResultsGrid";
 import { ResultsHeader } from "@/features/results/ResultsHeader";
 
 import { runGate } from "@/lib/ai/runGate";
+import { invoke } from "@tauri-apps/api/core";
 
+import { CmdKPalette, type ApplyMeta } from "@/features/ai/CmdKPalette";
 import { EditorTabs } from "./EditorTabs";
 import { isModifier, platformModifier } from "./keymap";
 
@@ -31,6 +33,8 @@ export function EditorPane() {
   const setError = useTabs((s) => s.setError);
   const activeConnection = useConnections((s) => s.activeId);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+  const [showCmdK, setShowCmdK] = useState(false);
+  const [selection, setSelection] = useState("");
 
   const activeTab = tabs.find((t) => t.id === activeId) ?? tabs[0];
   const connectionForTab = activeTab.connectionId ?? activeConnection;
@@ -83,11 +87,66 @@ export function EditorPane() {
       } else if (e.key.toLowerCase() === "w") {
         e.preventDefault();
         closeTab(activeTab.id);
+      } else if (e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        const ed = editorRef.current;
+        let sel = "";
+        if (ed) {
+          const m = ed.getModel();
+          const r = ed.getSelection();
+          if (m && r) sel = m.getValueInRange(r);
+        }
+        setSelection(sel);
+        setShowCmdK(true);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [activeTab.id, closeTab, connectionForTab, newTab, run]);
+
+  const handleCmdKApply = useCallback(
+    async (sql: string, meta: ApplyMeta) => {
+      const ed = editorRef.current;
+      if (ed) {
+        const m = ed.getModel();
+        const r = ed.getSelection();
+        if (m && r) {
+          ed.executeEdits("cmdk-apply", [
+            { range: r, text: sql, forceMoveMarkers: true },
+          ]);
+        } else {
+          const next =
+            activeTab.sql + (activeTab.sql.endsWith("\n") ? "" : "\n") + sql;
+          updateSql(activeTab.id, next);
+        }
+      }
+      if (connectionForTab) {
+        try {
+          await invoke("record_ai_generation", {
+            payload: {
+              connId: connectionForTab,
+              prompt: meta.prompt,
+              generatedSql: sql,
+              provider: meta.provider,
+              generationModel: meta.generationModel,
+              embeddingModel: meta.embeddingModel ?? null,
+              topKTables: meta.topKTables,
+              toolCalls: meta.toolCalls,
+              promptTokens: meta.promptTokens ?? null,
+              completionTokens: meta.completionTokens ?? null,
+              durationMs: 0,
+            },
+          });
+        } catch (e) {
+          toast.error(
+            `Failed to record AI history: ${e instanceof Error ? e.message : e}`,
+          );
+        }
+      }
+      setShowCmdK(false);
+    },
+    [activeTab.id, activeTab.sql, connectionForTab, updateSql],
+  );
 
   return (
     <div className="flex flex-1 flex-col">
@@ -139,6 +198,13 @@ export function EditorPane() {
           )}
         </div>
       </div>
+      <CmdKPalette
+        open={showCmdK}
+        connectionId={connectionForTab ?? undefined}
+        selection={selection}
+        onClose={() => setShowCmdK(false)}
+        onApply={handleCmdKApply}
+      />
     </div>
   );
 }

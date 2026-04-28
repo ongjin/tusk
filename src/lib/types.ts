@@ -188,7 +188,7 @@ export interface TxState {
 export interface HistoryEntry {
   id: string;
   connId: string;
-  source: "editor" | "inline" | "palette";
+  source: "editor" | "inline" | "palette" | "ai";
   txId?: string;
   sqlPreview: string;
   sqlFull?: string;

@@ -53,7 +53,13 @@ export function HistoryPalette({ onClose, onPick }: Props) {
               <span className="text-muted-foreground mr-2 font-mono">
                 {new Date(e.startedAt).toISOString().slice(0, 19)}
               </span>
-              <span className="font-mono">{e.sqlPreview}</span>
+              {e.source === "ai" ? (
+                <span className="font-mono">
+                  <span aria-hidden>✦</span> AI: {e.sqlPreview}
+                </span>
+              ) : (
+                <span className="font-mono">{e.sqlPreview}</span>
+              )}
               {e.statementCount > 1 && (
                 <span className="ml-2 text-amber-500">
                   (tx · {e.statementCount} stmts)
