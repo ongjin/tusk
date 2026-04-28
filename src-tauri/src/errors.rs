@@ -39,6 +39,24 @@ pub enum TuskError {
     History(String),
     #[error("Unsupported column type for editing: oid={oid}, name={name}")]
     UnsupportedEditType { oid: u32, name: String },
+
+    #[error("AI provider error: {0}")]
+    Ai(String),
+
+    #[error("AI provider not configured: {0}")]
+    AiNotConfigured(String),
+
+    #[error("Schema index error: {0}")]
+    SchemaIndex(String),
+
+    #[error("Embedding HTTP error: {0}")]
+    EmbeddingHttp(String),
+
+    #[error("Destructive guard: parser failed")]
+    DestructiveParserFailed,
+
+    #[error("Destructive guard: confirmation required")]
+    DestructiveConfirmRequired,
 }
 
 impl From<anyhow::Error> for TuskError {

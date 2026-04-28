@@ -221,3 +221,58 @@ export interface PendingChange {
   capturedColumns: string[];
   capturedAt: number;
 }
+
+export type AiProvider = "openai" | "anthropic" | "gemini" | "ollama";
+
+export interface ProviderConfig {
+  provider: AiProvider;
+  apiKeyPresent: boolean;
+  baseUrl?: string;
+  generationModel: string;
+  embeddingModel?: string;
+}
+
+export type DestructiveKind =
+  | "drop-database"
+  | "drop-schema"
+  | "drop-table"
+  | "drop-column"
+  | "drop-index"
+  | "drop-view"
+  | "drop-function"
+  | "truncate"
+  | "delete-no-where"
+  | "update-no-where"
+  | "alter-drop-constraint"
+  | "grant-revoke-all"
+  | "vacuum-full"
+  | "parser-failed";
+
+export interface DestructiveFinding {
+  kind: DestructiveKind;
+  statementIndex: number;
+  message: string;
+  affectedObject?: string;
+}
+
+export interface SchemaIndexProgress {
+  connId: string;
+  state: "idle" | "running" | "done" | "error";
+  totalTables: number;
+  embeddedTables: number;
+  errorMessage?: string;
+  lastSyncedAt?: number;
+}
+
+export interface AiHistoryMeta {
+  source: "ai";
+  provider: AiProvider;
+  generationModel: string;
+  embeddingModel?: string;
+  prompt: string;
+  generatedSql: string;
+  topKTables: string[];
+  toolCalls: { name: string; args: unknown }[];
+  promptTokens?: number;
+  completionTokens?: number;
+}
