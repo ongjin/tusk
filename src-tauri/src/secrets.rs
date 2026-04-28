@@ -42,14 +42,14 @@ mod tests {
     fn set_get_delete_roundtrip() {
         let id = format!("test-{}", uuid::Uuid::new_v4());
         if set_password(&id, "hunter2").is_err() {
-            // No usable backend — treat as skipped.
+            eprintln!("skipping set_get_delete_roundtrip: keyring backend unavailable");
             return;
         }
-        // On some macOS environments (unsigned test binaries) the keychain
-        // silently accepts the write but returns NoEntry on read. Treat that
-        // as "no usable backend" and skip rather than fail.
         let got = get_password(&id).unwrap();
         if got.is_none() {
+            eprintln!(
+                "skipping set_get_delete_roundtrip: keyring read returned None after successful set"
+            );
             return;
         }
         assert_eq!(got.as_deref(), Some("hunter2"));
