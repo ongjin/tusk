@@ -308,6 +308,12 @@ pub fn classify_vacuum_full(sql: &str) -> Vec<DestructiveFinding> {
     out
 }
 
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn classify_destructive_sql(sql: String) -> Vec<DestructiveFinding> {
+    classify_all(&sql)
+}
+
 pub fn classify_all(sql: &str) -> Vec<DestructiveFinding> {
     let vacuum = classify_vacuum_full(sql);
     let mut out = classify_destructive(sql);
