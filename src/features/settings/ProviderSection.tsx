@@ -3,6 +3,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { aiSecretSet, aiSecretDelete } from "@/lib/keychain";
+import { probeProvider } from "@/lib/ai/probe";
 import type { AiProvider, ProviderConfig } from "@/lib/types";
 import { useAi } from "@/store/ai";
 import { useSettings } from "@/store/settings";
@@ -76,8 +77,15 @@ export function ProviderSection() {
             }
           }}
           onConfigChange={(patch) => setProviderConfig(meta.id, patch)}
-          onTest={() => {
-            toast("Test stub — wired in Task 6");
+          onTest={async () => {
+            toast(`Testing ${meta.label}…`);
+            const r = await probeProvider({
+              provider: meta.id,
+              modelId: providers[meta.id].generationModel,
+              baseUrl: providers[meta.id].baseUrl,
+            });
+            if (r.ok) toast.success(`${meta.label}: ${r.message}`);
+            else toast.error(`${meta.label}: ${r.message}`);
           }}
         />
       ))}
@@ -178,7 +186,7 @@ interface CardProps {
   onSave: (key: string) => Promise<boolean>;
   onDelete: () => Promise<void>;
   onConfigChange: (patch: Partial<ProviderConfig>) => void;
-  onTest: () => void;
+  onTest: () => void | Promise<void>;
 }
 
 function ProviderCard(p: CardProps) {
@@ -200,7 +208,7 @@ function ProviderCard(p: CardProps) {
             <span className="text-muted-foreground">· no key</span>
           )}
         </label>
-        {p.config.apiKeyPresent && (
+        {(p.config.apiKeyPresent || p.providerId === "ollama") && (
           <Button size="sm" variant="ghost" onClick={p.onTest}>
             Test
           </Button>
