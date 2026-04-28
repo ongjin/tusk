@@ -112,14 +112,14 @@ pub struct StickyTx {
 
 ## 4. Libraries (Week 3 추가)
 
-| 영역            | 라이브러리                               | 사유                                                                                                 |
-| --------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| SQL AST         | `sqlparser 0.50+` (postgres dialect)     | PK 감지 시 단일 테이블 SELECT 인식. 파싱 실패 = read-only로 fallback.                                |
-| Numeric         | `bigdecimal` (sqlx `bigdecimal` feature) | numeric 정밀도 보존. 응답은 string으로 직렬화.                                                       |
-| Date/Time       | 기존 `chrono` 유지 + sqlx `PgInterval`   | timestamp/date/time은 chrono. interval은 sqlx `PgInterval`을 직접 ISO 8601 duration 문자열로 직렬화. |
-| UUID            | 기존 `uuid` (sqlx feature)               |                                                                                                      |
-| Network         | `ipnetwork` (sqlx `ipnetwork` feature)   | inet/cidr typed 디코드. 응답은 텍스트 표현.                                                          |
-| Frontend SQL hl | Monaco 기존 사용 (위젯 미니 인스턴스)    |                                                                                                      |
+| 영역            | 라이브러리                               | 사유                                                                                                                                  |
+| --------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| SQL AST         | `sqlparser 0.50+` (postgres dialect)     | PK 감지 시 단일 테이블 SELECT 인식. 파싱 실패 = read-only로 fallback.                                                                 |
+| Numeric         | `bigdecimal` (sqlx `bigdecimal` feature) | numeric 정밀도 보존. 응답은 `BigDecimal::to_string()` 그대로 (정규화 X) — `numeric(p,s)`의 trailing zero 보존 → 편집 round-trip 안전. |
+| Date/Time       | 기존 `chrono` 유지 + sqlx `PgInterval`   | timestamp/date/time은 chrono. interval은 sqlx `PgInterval`을 직접 ISO 8601 duration 문자열로 직렬화.                                  |
+| UUID            | 기존 `uuid` (sqlx feature)               |                                                                                                                                       |
+| Network         | `ipnetwork` (sqlx `ipnetwork` feature)   | inet/cidr typed 디코드. 응답은 텍스트 표현.                                                                                           |
+| Frontend SQL hl | Monaco 기존 사용 (위젯 미니 인스턴스)    |                                                                                                                                       |
 
 ## 5. Data model
 

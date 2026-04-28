@@ -182,7 +182,7 @@ fn decode_cell(row: &PgRow, idx: usize, oid: u32) -> Cell {
             .unwrap_or(Cell::Null),
         oids::NUMERIC => row
             .try_get::<bigdecimal::BigDecimal, _>(idx)
-            .map(|v| Cell::Numeric(v.normalized().to_string()))
+            .map(|v| Cell::Numeric(v.to_string()))
             .unwrap_or(Cell::Null),
         oids::TEXT | oids::VARCHAR | oids::BPCHAR => row
             .try_get::<String, _>(idx)

@@ -2,6 +2,19 @@ import type { ReactNode } from "react";
 
 import type { Cell } from "@/lib/types";
 
+function b64ToHex(b64: string): string {
+  try {
+    const bin = atob(b64);
+    let out = "";
+    for (let i = 0; i < bin.length; i++) {
+      out += bin.charCodeAt(i).toString(16).padStart(2, "0");
+    }
+    return out;
+  } catch {
+    return "";
+  }
+}
+
 export function renderCell(cell: Cell): ReactNode {
   switch (cell.kind) {
     case "Null":
@@ -24,12 +37,16 @@ export function renderCell(cell: Cell): ReactNode {
       return cell.value;
     case "Interval":
       return cell.value.iso;
-    case "Bytea":
+    case "Bytea": {
+      const hex = b64ToHex(cell.value.b64);
+      const truncated = hex.length > 24;
       return (
         <span className="font-mono text-xs">
-          {`\\x${cell.value.b64.slice(0, 24)}…`}
+          \x{truncated ? hex.slice(0, 24) : hex}
+          {truncated && "…"}
         </span>
       );
+    }
     case "Json":
       return (
         <code className="text-xs">

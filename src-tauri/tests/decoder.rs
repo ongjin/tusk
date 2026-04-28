@@ -65,8 +65,11 @@ async fn decodes_core_types_round_trip() {
     }
     assert!(matches!(cells[4], Cell::Float(_)));
     assert!(matches!(cells[5], Cell::Float(_)));
+    // sqlx's BigDecimal decode of `1.234::numeric` preserves PG's stored scale (4 digits → "1.2340").
+    // We deliberately do NOT call .normalized() in the decoder so editing round-trips can preserve scale
+    // (e.g. UPDATE on numeric(10,4) columns where trailing zeros are semantically significant).
     if let Cell::Numeric(s) = &cells[6] {
-        assert_eq!(s, "1.234");
+        assert_eq!(s, "1.2340");
     } else {
         panic!("num")
     }
