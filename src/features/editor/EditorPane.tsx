@@ -5,12 +5,17 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { executeQuery } from "@/lib/tauri";
+import { withAutoLimit } from "@/lib/sql";
 import { useTheme } from "@/hooks/use-theme";
 import { useConnections } from "@/store/connections";
 import { useTabs } from "@/store/tabs";
+import { ResultsGrid } from "@/features/results/ResultsGrid";
+import { ResultsHeader } from "@/features/results/ResultsHeader";
 
 import { EditorTabs } from "./EditorTabs";
 import { isModifier, platformModifier } from "./keymap";
+
+const AUTO_LIMIT_DEFAULT = 1000;
 
 export function EditorPane() {
   const { theme } = useTheme();
@@ -39,7 +44,8 @@ export function EditorPane() {
     }
     setBusy(activeTab.id, true);
     try {
-      const result = await executeQuery(connectionForTab, activeTab.sql);
+      const sqlToRun = withAutoLimit(activeTab.sql, AUTO_LIMIT_DEFAULT);
+      const result = await executeQuery(connectionForTab, sqlToRun);
       setResult(activeTab.id, result);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Query failed";
@@ -108,6 +114,16 @@ export function EditorPane() {
               wordWrap: "on",
             }}
           />
+        </div>
+        <div className="flex max-h-[45vh] min-h-[120px] flex-col">
+          <ResultsHeader
+            result={activeTab.lastResult}
+            error={activeTab.lastError}
+            busy={activeTab.busy}
+          />
+          {activeTab.lastResult && (
+            <ResultsGrid result={activeTab.lastResult} />
+          )}
         </div>
       </div>
     </div>
