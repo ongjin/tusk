@@ -9,6 +9,11 @@ use sqlx::{PgPool, Row};
 
 use crate::errors::{TuskError, TuskResult};
 
+/// Double-quote a PostgreSQL identifier, escaping any embedded double-quotes.
+fn quote_ident(name: &str) -> String {
+    format!("\"{}\"", name.replace('"', "\"\""))
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct TableDdl {
     pub schema: String,
@@ -65,7 +70,11 @@ pub async fn build_table_ddl(pool: &PgPool, schema: &str, table: &str) -> TuskRe
     .await
     .map_err(|e| TuskError::SchemaIndex(e.to_string()))?;
 
-    let mut ddl = format!("CREATE TABLE \"{schema}\".\"{table}\" (\n");
+    let mut ddl = format!(
+        "CREATE TABLE {}.{} (\n",
+        quote_ident(schema),
+        quote_ident(table)
+    );
     for (i, r) in cols.iter().enumerate() {
         let name: String = r
             .try_get(0)
@@ -114,7 +123,9 @@ pub async fn build_table_ddl(pool: &PgPool, schema: &str, table: &str) -> TuskRe
             .collect();
         if !pk.is_empty() {
             ddl.push_str(&format!(
-                "ALTER TABLE \"{schema}\".\"{table}\" ADD PRIMARY KEY ({});\n",
+                "ALTER TABLE {}.{} ADD PRIMARY KEY ({});\n",
+                quote_ident(schema),
+                quote_ident(table),
                 pk.iter()
                     .map(|c| format!("\"{c}\""))
                     .collect::<Vec<_>>()
@@ -138,7 +149,9 @@ pub async fn build_table_ddl(pool: &PgPool, schema: &str, table: &str) -> TuskRe
             let name: String = r.try_get(0).unwrap_or_default();
             let def: String = r.try_get(1).unwrap_or_default();
             ddl.push_str(&format!(
-                "ALTER TABLE \"{schema}\".\"{table}\" ADD CONSTRAINT {name} {def};\n"
+                "ALTER TABLE {}.{} ADD CONSTRAINT {name} {def};\n",
+                quote_ident(schema),
+                quote_ident(table),
             ));
         }
     }
@@ -151,7 +164,9 @@ pub async fn build_table_ddl(pool: &PgPool, schema: &str, table: &str) -> TuskRe
     {
         if let Ok(Some(comment)) = c.try_get::<Option<String>, _>(0) {
             ddl.push_str(&format!(
-                "COMMENT ON TABLE \"{schema}\".\"{table}\" IS '{}';\n",
+                "COMMENT ON TABLE {}.{} IS '{}';\n",
+                quote_ident(schema),
+                quote_ident(table),
                 comment.replace('\'', "''")
             ));
         }

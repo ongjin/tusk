@@ -55,8 +55,8 @@ pub async fn embed_one(
             embed_openai_at(client, OPENAI_ENDPOINT, api_key, model, text).await
         }
         EmbeddingProvider::Gemini { api_key } => {
-            let url = format!("{GEMINI_ENDPOINT_BASE}/{model}:embedContent?key={api_key}");
-            embed_gemini_at(client, &url, text).await
+            let url = format!("{GEMINI_ENDPOINT_BASE}/{model}:embedContent");
+            embed_gemini_at(client, &url, api_key, text).await
         }
         EmbeddingProvider::Ollama { base_url } => {
             let url = format!("{}/api/embeddings", base_url.trim_end_matches('/'));
@@ -99,7 +99,12 @@ pub async fn embed_openai_at(
         .ok_or_else(|| TuskError::EmbeddingHttp("empty response".into()))
 }
 
-pub async fn embed_gemini_at(client: &Client, url: &str, text: &str) -> TuskResult<Vec<f32>> {
+pub async fn embed_gemini_at(
+    client: &Client,
+    url: &str,
+    api_key: &str,
+    text: &str,
+) -> TuskResult<Vec<f32>> {
     #[derive(Deserialize)]
     struct Resp {
         embedding: Inner,
@@ -110,6 +115,7 @@ pub async fn embed_gemini_at(client: &Client, url: &str, text: &str) -> TuskResu
     }
     let r = client
         .post(url)
+        .header("x-goog-api-key", api_key)
         .json(&json!({
             "content": { "parts": [{ "text": text }] }
         }))

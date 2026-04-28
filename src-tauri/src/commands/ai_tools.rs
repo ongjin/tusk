@@ -9,6 +9,11 @@ use crate::db::pool::ConnectionRegistry;
 use crate::db::schema_embed::build_table_ddl;
 use crate::errors::{TuskError, TuskResult};
 
+/// Double-quote a PostgreSQL identifier, escaping any embedded double-quotes.
+fn quote_ident(name: &str) -> String {
+    format!("\"{}\"", name.replace('"', "\"\""))
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IndexRow {
@@ -74,9 +79,13 @@ pub async fn sample_rows(
 ) -> TuskResult<serde_json::Value> {
     let pool = registry.pool(&connection_id)?;
     let limit = limit.min(20);
-    // Schema/table are trusted (sourced from pg_class enum) — but wrap in
-    // identifier quotes for defense in depth.
-    let sql = format!("SELECT * FROM \"{schema}\".\"{table}\" LIMIT {limit}");
+    // Schema/table are trusted (sourced from pg_class enum) — but escape
+    // identifier quotes for defense in depth against LLM-controlled args.
+    let sql = format!(
+        "SELECT * FROM {}.{} LIMIT {limit}",
+        quote_ident(&schema),
+        quote_ident(&table),
+    );
     let rows = sqlx::query(&sql)
         .fetch_all(&pool)
         .await

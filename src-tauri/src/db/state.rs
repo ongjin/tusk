@@ -535,12 +535,21 @@ impl StateStore {
         &self,
         payload: crate::commands::history::AiGenerationPayload,
     ) -> TuskResult<String> {
-        let conn = self.db.lock().expect("state lock poisoned");
+        let mut conn = self.db.lock().expect("state lock poisoned");
         let entry_id = uuid::Uuid::new_v4().to_string();
         let preview: String = payload.generated_sql.chars().take(200).collect();
         let now = chrono::Utc::now().timestamp_millis();
+        let top_k_json = serde_json::to_string(&payload.top_k_tables)
+            .map_err(|e| TuskError::History(e.to_string()))?;
+        let tool_calls_json = serde_json::to_string(&payload.tool_calls)
+            .map_err(|e| TuskError::History(e.to_string()))?;
+
+        let tx = conn
+            .transaction()
+            .map_err(|e| TuskError::History(e.to_string()))?;
+
         // 1. history_entry: source='ai', sql_full=generated_sql, status='ok', statement_count=1
-        conn.execute(
+        tx.execute(
             "INSERT INTO history_entry
              (id, conn_id, source, tx_id, sql_preview, sql_full,
               started_at, duration_ms, row_count, status, error_message, statement_count)
@@ -557,11 +566,7 @@ impl StateStore {
         .map_err(|e| TuskError::History(e.to_string()))?;
 
         // 2. ai_history: full metadata
-        let top_k_json = serde_json::to_string(&payload.top_k_tables)
-            .map_err(|e| TuskError::History(e.to_string()))?;
-        let tool_calls_json = serde_json::to_string(&payload.tool_calls)
-            .map_err(|e| TuskError::History(e.to_string()))?;
-        conn.execute(
+        tx.execute(
             "INSERT INTO ai_history
              (entry_id, provider, generation_model, embedding_model,
               prompt, generated_sql, top_k_tables, tool_calls,
@@ -581,6 +586,8 @@ impl StateStore {
             ],
         )
         .map_err(|e| TuskError::History(e.to_string()))?;
+
+        tx.commit().map_err(|e| TuskError::History(e.to_string()))?;
         Ok(entry_id)
     }
 

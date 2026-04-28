@@ -55,7 +55,7 @@ async fn gemini_roundtrip() {
         "{}/v1beta/models/text-embedding-004:embedContent",
         server.base_url()
     );
-    let r = embed_gemini_at(&Client::new(), &url, "hello")
+    let r = embed_gemini_at(&Client::new(), &url, "test-api-key", "hello")
         .await
         .unwrap();
     assert_eq!(r, vec![0.6_f32, 0.7, 0.8]);
