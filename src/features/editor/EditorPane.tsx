@@ -13,6 +13,8 @@ import { useTabs } from "@/store/tabs";
 import { ResultsGrid } from "@/features/results/ResultsGrid";
 import { ResultsHeader } from "@/features/results/ResultsHeader";
 
+import { runGate } from "@/lib/ai/runGate";
+
 import { EditorTabs } from "./EditorTabs";
 import { isModifier, platformModifier } from "./keymap";
 
@@ -46,6 +48,11 @@ export function EditorPane() {
     try {
       const sqlToRun =
         autoLimit > 0 ? withAutoLimit(activeTab.sql, autoLimit) : activeTab.sql;
+      const proceed = await runGate(sqlToRun);
+      if (!proceed) {
+        setBusy(activeTab.id, false);
+        return;
+      }
       const result = await executeQuery(connectionForTab, sqlToRun);
       setResult(activeTab.id, result);
     } catch (e) {
