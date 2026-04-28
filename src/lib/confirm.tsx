@@ -17,6 +17,9 @@ export function openConfirmModal(opts: {
   buttons: string[];
 }): Promise<string | null> {
   return new Promise((resolve) => {
+    if (pending) {
+      pending.resolve(null);
+    }
     pending = { ...opts, resolve };
     pendingListener?.(pending);
   });

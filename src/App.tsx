@@ -56,39 +56,50 @@ function App() {
   // Block window close when there are open transactions.
   useEffect(() => {
     const win = getCurrentWindow();
-    const unlistenPromise = win.onCloseRequested((event) => {
-      const active = Object.values(useTransactions.getState().byConn).filter(
-        (t) => t.active,
-      );
-      if (active.length === 0) return;
-      event.preventDefault();
-      void (async () => {
-        const choice = await openConfirmModal({
-          title: "Open transactions",
-          body: `${active.length} transaction(s) have uncommitted changes.`,
-          buttons: ["Commit all", "Rollback all", "Cancel"],
-        });
-        try {
-          if (choice === "Commit all") {
-            for (const t of active) {
-              await useTransactions.getState().commit(t.connId);
+    let unlisten: (() => void) | null = null;
+    let cancelled = false;
+    void win
+      .onCloseRequested((event) => {
+        const active = Object.values(useTransactions.getState().byConn).filter(
+          (t) => t.active,
+        );
+        if (active.length === 0) return;
+        event.preventDefault();
+        void (async () => {
+          const choice = await openConfirmModal({
+            title: "Open transactions",
+            body: `${active.length} transaction(s) have uncommitted changes.`,
+            buttons: ["Commit all", "Rollback all", "Cancel"],
+          });
+          try {
+            if (choice === "Commit all") {
+              for (const t of active) {
+                await useTransactions.getState().commit(t.connId);
+              }
+              await win.close();
+            } else if (choice === "Rollback all") {
+              for (const t of active) {
+                await useTransactions.getState().rollback(t.connId);
+              }
+              await win.close();
             }
-            await win.close();
-          } else if (choice === "Rollback all") {
-            for (const t of active) {
-              await useTransactions.getState().rollback(t.connId);
-            }
-            await win.close();
+            // Cancel / dismiss: stay open.
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            toast.error(`Failed to finalize transactions: ${msg}`);
           }
-          // Cancel / dismiss: stay open.
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          toast.error(`Failed to finalize transactions: ${msg}`);
+        })();
+      })
+      .then((fn) => {
+        if (cancelled) {
+          fn();
+        } else {
+          unlisten = fn;
         }
-      })();
-    });
+      });
     return () => {
-      void unlistenPromise.then((fn) => fn());
+      cancelled = true;
+      if (unlisten) unlisten();
     };
   }, []);
 

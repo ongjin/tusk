@@ -31,6 +31,7 @@ export function TxSidePanel({ connId }: { connId: string }) {
     return () => {
       cancelled = true;
       clearInterval(id);
+      setStmts([]);
     };
   }, [connId, txId]);
 
