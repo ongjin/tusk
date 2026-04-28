@@ -80,6 +80,8 @@ pub struct StateStore {
 impl StateStore {
     pub fn open<P: AsRef<Path>>(path: P) -> TuskResult<Self> {
         let db = Sqlite::open(path).map_err(|e| TuskError::State(e.to_string()))?;
+        db.execute("PRAGMA foreign_keys = ON", [])
+            .map_err(|e| TuskError::State(e.to_string()))?;
         let store = Self { db: Mutex::new(db) };
         store.migrate()?;
         Ok(store)
@@ -87,6 +89,8 @@ impl StateStore {
 
     pub fn open_in_memory() -> TuskResult<Self> {
         let db = Sqlite::open_in_memory().map_err(|e| TuskError::State(e.to_string()))?;
+        db.execute("PRAGMA foreign_keys = ON", [])
+            .map_err(|e| TuskError::State(e.to_string()))?;
         let store = Self { db: Mutex::new(db) };
         store.migrate()?;
         Ok(store)
@@ -684,5 +688,51 @@ mod tests {
         assert_eq!(listed[0].ordinal, 0);
         assert_eq!(listed[0].sql, "BEGIN");
         assert_eq!(listed[2].sql, "COMMIT");
+    }
+
+    #[test]
+    fn delete_entry_cascades_statements() {
+        let store = StateStore::open_in_memory().unwrap();
+        let entry = HistoryEntry {
+            id: "tx_cascade".into(),
+            conn_id: "c1".into(),
+            source: "editor".into(),
+            tx_id: Some("t1".into()),
+            sql_preview: "tx".into(),
+            sql_full: None,
+            started_at: 0,
+            duration_ms: 0,
+            row_count: None,
+            status: "ok".into(),
+            error_message: None,
+            statement_count: 2,
+        };
+        store.insert_history_entry(&entry).unwrap();
+        for i in 0..2 {
+            store
+                .append_history_statement(&HistoryStatement {
+                    id: format!("s{i}"),
+                    entry_id: "tx_cascade".into(),
+                    ordinal: i,
+                    sql: "x".into(),
+                    duration_ms: 0,
+                    row_count: None,
+                    status: "ok".into(),
+                    error_message: None,
+                })
+                .unwrap();
+        }
+        // Delete the parent entry directly via raw SQL (no public method yet).
+        {
+            let db = store.db.lock().expect("state lock");
+            db.execute("DELETE FROM history_entry WHERE id = 'tx_cascade'", [])
+                .unwrap();
+        }
+        let remaining = store.list_history_statements("tx_cascade").unwrap();
+        assert!(
+            remaining.is_empty(),
+            "cascade delete should remove orphan statements; got {}",
+            remaining.len()
+        );
     }
 }
