@@ -53,6 +53,9 @@ pub fn run() {
             commands::ai_secrets::ai_secret_delete,
             commands::ai_secrets::ai_secret_list_present,
             commands::destructive::classify_destructive_sql,
+            commands::schema_index::sync_schema_index,
+            commands::schema_index::schema_index_clear,
+            commands::schema_index::schema_index_count,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

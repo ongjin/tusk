@@ -9,6 +9,7 @@ pub mod history;
 pub mod meta;
 pub mod query;
 pub mod schema;
+pub mod schema_index;
 pub mod sqlast;
 pub mod ssh;
 pub mod transactions;
