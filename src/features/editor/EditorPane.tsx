@@ -197,7 +197,10 @@ export function EditorPane() {
             }
           />
           {activeTab.resultMode === "plan" && activeTab.lastPlan ? (
-            <ExplainView result={activeTab.lastPlan.result} />
+            <ExplainView
+              tabId={activeTab.id}
+              result={activeTab.lastPlan.result}
+            />
           ) : (
             activeTab.lastResult &&
             connectionForTab && (
