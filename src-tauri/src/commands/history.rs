@@ -2,7 +2,7 @@
 use serde::Deserialize;
 use tauri::State;
 
-use crate::db::state::{HistoryEntry, HistoryStatement, StateStore};
+use crate::db::state::{AiExplainPayload, HistoryEntry, HistoryStatement, StateStore};
 use crate::errors::{TuskError, TuskResult};
 
 #[derive(Debug, Deserialize)]
@@ -62,4 +62,12 @@ pub fn record_ai_generation(
     store
         .insert_ai_generation(payload)
         .map_err(|e| TuskError::History(e.to_string()))
+}
+
+#[tauri::command]
+pub async fn record_ai_explain(
+    store: tauri::State<'_, crate::db::state::StateStore>,
+    payload: AiExplainPayload,
+) -> crate::errors::TuskResult<String> {
+    store.insert_ai_explain(&payload)
 }

@@ -73,6 +73,22 @@ pub struct NewConnection {
     pub ssh_key_path: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiExplainPayload {
+    pub conn_id: String,
+    pub plan_sha: String,
+    pub provider: String,
+    pub model: String,
+    pub summary: String,
+    pub raw_plan_json: String,
+    pub verified_candidates_json: String,
+    pub llm_recommendations_json: String,
+    pub prompt_tokens: Option<i64>,
+    pub completion_tokens: Option<i64>,
+    pub duration_ms: i64,
+}
+
 pub struct StateStore {
     db: Mutex<Sqlite>,
 }
@@ -185,6 +201,26 @@ impl StateStore {
                 prompt_tokens     INTEGER,
                 completion_tokens INTEGER
             );
+            "#,
+        )
+        .map_err(|e| TuskError::State(e.to_string()))?;
+        db.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS ai_explain (
+                entry_id                  TEXT PRIMARY KEY
+                                          REFERENCES history_entry(id) ON DELETE CASCADE,
+                plan_sha                  TEXT NOT NULL,
+                provider                  TEXT NOT NULL,
+                model                     TEXT NOT NULL,
+                summary                   TEXT NOT NULL,
+                raw_plan_json             TEXT NOT NULL,
+                verified_candidates_json  TEXT NOT NULL,
+                llm_recommendations_json  TEXT NOT NULL,
+                prompt_tokens             INTEGER,
+                completion_tokens         INTEGER,
+                duration_ms               INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_ai_explain_plan_sha ON ai_explain(plan_sha);
             "#,
         )
         .map_err(|e| TuskError::State(e.to_string()))?;
@@ -591,6 +627,62 @@ impl StateStore {
         Ok(entry_id)
     }
 
+    pub fn insert_ai_explain(&self, payload: &AiExplainPayload) -> TuskResult<String> {
+        let mut conn = self.db.lock().expect("state lock poisoned");
+
+        let entry_id = uuid::Uuid::new_v4().to_string();
+        let preview = format!(
+            "-- EXPLAIN interpretation [planSha={}]",
+            &payload.plan_sha[..16.min(payload.plan_sha.len())]
+        );
+        let now = chrono::Utc::now().timestamp_millis();
+
+        let tx = conn
+            .transaction()
+            .map_err(|e| TuskError::History(e.to_string()))?;
+
+        tx.execute(
+            "INSERT INTO history_entry
+             (id, conn_id, source, tx_id, sql_preview, sql_full,
+              started_at, duration_ms, row_count, status, error_message, statement_count)
+             VALUES (?, ?, 'ai_explain', NULL, ?, ?, ?, ?, NULL, 'ok', NULL, 0)",
+            rusqlite::params![
+                entry_id,
+                payload.conn_id,
+                preview,
+                payload.summary.chars().take(2000).collect::<String>(),
+                now,
+                payload.duration_ms,
+            ],
+        )
+        .map_err(|e| TuskError::History(e.to_string()))?;
+
+        tx.execute(
+            "INSERT INTO ai_explain
+             (entry_id, plan_sha, provider, model, summary, raw_plan_json,
+              verified_candidates_json, llm_recommendations_json,
+              prompt_tokens, completion_tokens, duration_ms)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            rusqlite::params![
+                entry_id,
+                payload.plan_sha,
+                payload.provider,
+                payload.model,
+                payload.summary,
+                payload.raw_plan_json,
+                payload.verified_candidates_json,
+                payload.llm_recommendations_json,
+                payload.prompt_tokens,
+                payload.completion_tokens,
+                payload.duration_ms,
+            ],
+        )
+        .map_err(|e| TuskError::History(e.to_string()))?;
+
+        tx.commit().map_err(|e| TuskError::History(e.to_string()))?;
+        Ok(entry_id)
+    }
+
     pub fn list_history_statements(&self, entry_id: &str) -> TuskResult<Vec<HistoryStatement>> {
         let db = self.db.lock().expect("state lock poisoned");
         let mut stmt = db
@@ -859,5 +951,35 @@ mod tests {
             "cascade delete should remove orphan statements; got {}",
             remaining.len()
         );
+    }
+
+    #[test]
+    fn ai_explain_round_trip() {
+        let store = StateStore::open_in_memory().unwrap();
+        let payload = AiExplainPayload {
+            conn_id: "conn-1".into(),
+            plan_sha: "abcdef0123456789abcdef0123456789".into(),
+            provider: "openai".into(),
+            model: "gpt-4o-mini".into(),
+            summary: "Seq scan dominates.".into(),
+            raw_plan_json: "{}".into(),
+            verified_candidates_json: "[]".into(),
+            llm_recommendations_json: "[]".into(),
+            prompt_tokens: Some(1234),
+            completion_tokens: Some(56),
+            duration_ms: 789,
+        };
+        let id = store.insert_ai_explain(&payload).expect("insert");
+        assert!(!id.is_empty());
+
+        let db = store.lock();
+        let n: i64 = db
+            .query_row(
+                "SELECT count(*) FROM ai_explain WHERE entry_id = ?",
+                [&id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(n, 1);
     }
 }
