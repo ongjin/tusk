@@ -12,6 +12,7 @@ import { useSettings } from "@/store/settings";
 import { useTabs } from "@/store/tabs";
 import { ResultsGrid } from "@/features/results/ResultsGrid";
 import { ResultsHeader } from "@/features/results/ResultsHeader";
+import { ExplainView } from "@/features/explain/ExplainView";
 
 import { runGate } from "@/lib/ai/runGate";
 import { invoke } from "@tauri-apps/api/core";
@@ -189,12 +190,22 @@ export function EditorPane() {
             error={activeTab.lastError}
             busy={activeTab.busy}
             connId={connectionForTab}
+            hasPlan={!!activeTab.lastPlan}
+            resultMode={activeTab.resultMode}
+            onModeChange={(mode) =>
+              useTabs.getState().setResultMode(activeTab.id, mode)
+            }
           />
-          {activeTab.lastResult && connectionForTab && (
-            <ResultsGrid
-              result={activeTab.lastResult}
-              connId={connectionForTab}
-            />
+          {activeTab.resultMode === "plan" && activeTab.lastPlan ? (
+            <ExplainView result={activeTab.lastPlan.result} />
+          ) : (
+            activeTab.lastResult &&
+            connectionForTab && (
+              <ResultsGrid
+                result={activeTab.lastResult}
+                connId={connectionForTab}
+              />
+            )
           )}
         </div>
       </div>

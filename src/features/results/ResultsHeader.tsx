@@ -20,9 +20,20 @@ interface Props {
   error?: string;
   busy?: boolean;
   connId?: string | null;
+  hasPlan?: boolean;
+  resultMode?: "rows" | "plan";
+  onModeChange?: (mode: "rows" | "plan") => void;
 }
 
-export function ResultsHeader({ result, error, busy, connId }: Props) {
+export function ResultsHeader({
+  result,
+  error,
+  busy,
+  connId,
+  hasPlan,
+  resultMode,
+  onModeChange,
+}: Props) {
   const [showPreview, setShowPreview] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [activeConflict, setActiveConflict] = useState<BatchConflict | null>(
@@ -58,6 +69,26 @@ export function ResultsHeader({ result, error, busy, connId }: Props) {
 
   return (
     <div className="border-border bg-muted/40 flex items-center gap-3 border-b px-3 py-1.5 text-xs">
+      {(result || hasPlan) && (
+        <div className="border-input flex overflow-hidden rounded-sm border text-[11px]">
+          <button
+            type="button"
+            onClick={() => onModeChange?.("rows")}
+            className={`px-2 py-0.5 ${resultMode === "rows" ? "bg-accent text-accent-foreground" : ""}`}
+            disabled={!result}
+          >
+            Rows
+          </button>
+          <button
+            type="button"
+            onClick={() => onModeChange?.("plan")}
+            className={`px-2 py-0.5 ${resultMode === "plan" ? "bg-accent text-accent-foreground" : ""}`}
+            disabled={!hasPlan}
+          >
+            Plan
+          </button>
+        </div>
+      )}
       {busy && <span className="text-muted-foreground">Running…</span>}
       {!busy && error && <span className="text-destructive">{error}</span>}
       {!busy && result && (
