@@ -15,3 +15,4 @@ pub mod schema_index;
 pub mod sqlast;
 pub mod ssh;
 pub mod transactions;
+pub mod vector;
