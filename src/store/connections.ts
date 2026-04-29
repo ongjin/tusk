@@ -57,6 +57,9 @@ export const useConnections = create<ConnectionsState>((set, get) => ({
   async connect(id) {
     await connectCmd(id);
     set({ activeId: id });
+    void import("@/store/useVectorMeta").then((m) => {
+      void m.useVectorMeta.getState().refresh(id);
+    });
     await get().refresh();
     const auto = useSettings.getState().schemaIndexAutoSync;
     if (auto) {
