@@ -50,7 +50,7 @@ pub async fn fetch_column_stats(
         "#
     );
 
-    let mut q = sqlx::query_as::<_, (String, String, String, Option<f64>, Option<f32>)>(&sql);
+    let mut q = sqlx::query_as::<_, (String, String, String, Option<f32>, Option<f32>)>(&sql);
     for r in refs {
         q = q.bind(&r.schema).bind(&r.table).bind(&r.column);
     }
@@ -60,11 +60,11 @@ pub async fn fetch_column_stats(
         .map_err(|e| TuskError::Explain(format!("pg_stats query failed: {e}")))?;
 
     let mut out = HashMap::with_capacity(rows.len());
-    for (schema, table, column, n_distinct, null_frac_f32) in rows {
+    for (schema, table, column, n_distinct_f32, null_frac_f32) in rows {
         out.insert(
             (schema, table, column),
             ColumnStats {
-                n_distinct,
+                n_distinct: n_distinct_f32.map(f64::from),
                 null_frac: null_frac_f32.map(f64::from),
             },
         );
@@ -99,5 +99,62 @@ mod tests {
             .unwrap();
         assert!(stats.n_distinct.is_none());
         assert!(stats.null_frac.is_none());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn populated_table_returns_some_stats() {
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(1)
+            .connect("postgres://tusk:tusk@127.0.0.1:55432/tusk_test")
+            .await
+            .unwrap();
+
+        // Unique table name so a prior run that died mid-flight doesn't clash.
+        let table = format!(
+            "pg_stats_probe_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+
+        sqlx::query(&format!("CREATE TABLE public.{table} (id INT)"))
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query(&format!(
+            "INSERT INTO public.{table}(id) SELECT g FROM generate_series(1, 100) g"
+        ))
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(&format!("ANALYZE public.{table}"))
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let refs = vec![ColumnRef {
+            schema: "public".into(),
+            table: table.clone(),
+            column: "id".into(),
+        }];
+        let m = fetch_column_stats(&pool, &refs).await.unwrap();
+        let stats = m
+            .get(&("public".into(), table.clone(), "id".into()))
+            .expect("populated table should appear in result map");
+        assert!(
+            stats.n_distinct.is_some(),
+            "n_distinct should be populated after ANALYZE"
+        );
+        assert!(
+            stats.null_frac.is_some(),
+            "null_frac should be populated after ANALYZE"
+        );
+
+        // Cleanup. Tolerate failure — assertions above already proved the behavior.
+        let _ = sqlx::query(&format!("DROP TABLE IF EXISTS public.{table}"))
+            .execute(&pool)
+            .await;
     }
 }
