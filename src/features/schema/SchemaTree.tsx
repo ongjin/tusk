@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useConnections } from "@/store/connections";
 import { useSchema } from "@/store/schema";
+import { useVectorMeta } from "@/store/useVectorMeta";
 
 import { SchemaNode } from "./SchemaNode";
 
@@ -111,6 +112,7 @@ function TableBranch({
   const key = `${connectionId}:${schema}:${table}`;
   const cols = useSchema((s) => s.columns[key]);
   const loadColumns = useSchema((s) => s.loadColumns);
+  const hasVectorAt = useVectorMeta((s) => s.hasVectorAt);
 
   const onExpand = useCallback(() => {
     loadColumns(connectionId, schema, table);
@@ -127,7 +129,31 @@ function TableBranch({
             className="text-muted-foreground flex justify-between text-xs"
             style={{ paddingLeft: 4 + (indent + 1) * 12, paddingRight: 8 }}
           >
-            <span>{c.name}</span>
+            <span className="flex items-center">
+              <span>{c.name}</span>
+              {(() => {
+                const v = hasVectorAt(connectionId, schema, table, c.name);
+                if (!v) return null;
+                return (
+                  <>
+                    <span
+                      className="text-muted-foreground ml-2 rounded bg-blue-500/10 px-1 text-[10px]"
+                      title={`vector(${v.dim})`}
+                    >
+                      vec({v.dim})
+                    </span>
+                    {!v.hasIndex && (
+                      <span
+                        className="ml-1 text-amber-600"
+                        title="No HNSW/IVFFlat index — sequential scan only"
+                      >
+                        ⚠
+                      </span>
+                    )}
+                  </>
+                );
+              })()}
+            </span>
             <span>
               {c.data_type}
               {!c.is_nullable && " ·"}
