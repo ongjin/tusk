@@ -57,6 +57,9 @@ pub enum TuskError {
 
     #[error("Destructive guard: confirmation required")]
     DestructiveConfirmRequired,
+
+    #[error("Explain error: {0}")]
+    Explain(String),
 }
 
 impl From<anyhow::Error> for TuskError {
