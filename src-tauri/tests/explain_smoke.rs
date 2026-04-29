@@ -33,3 +33,78 @@ fn classify_basic() {
         ExplainCategory::NotExplainable
     ));
 }
+
+async fn seed_demo_table(pool: &sqlx::PgPool, table: &str) {
+    sqlx::query(&format!("DROP TABLE IF EXISTS {table}"))
+        .fetch_all(pool)
+        .await
+        .unwrap();
+    sqlx::query(&format!("CREATE TABLE {table} (id int, label text)"))
+        .fetch_all(pool)
+        .await
+        .unwrap();
+    sqlx::query(&format!(
+        "INSERT INTO {table} VALUES (1,'a'),(2,'b'),(3,'c')"
+    ))
+    .fetch_all(pool)
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+#[ignore]
+async fn analyze_anyway_rolls_back_delete() {
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(1)
+        .connect("postgres://tusk:tusk@127.0.0.1:55432/tusk_test")
+        .await
+        .unwrap();
+    let table = "week5_demo_delete";
+    seed_demo_table(&pool, table).await;
+
+    let mut conn = pool.acquire().await.unwrap();
+    sqlx::query("BEGIN").fetch_all(&mut *conn).await.unwrap();
+    let r: Result<(JsonValue,), sqlx::Error> = sqlx::query_as(&format!(
+        "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) DELETE FROM {table}"
+    ))
+    .fetch_one(&mut *conn)
+    .await;
+    sqlx::query("ROLLBACK").fetch_all(&mut *conn).await.unwrap();
+    assert!(r.is_ok(), "EXPLAIN ANALYZE DELETE should succeed");
+    drop(conn);
+
+    let count: (i64,) = sqlx::query_as(&format!("SELECT count(*) FROM {table}"))
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        count.0, 3,
+        "DELETE inside EXPLAIN ANALYZE must be rolled back"
+    );
+}
+
+#[tokio::test]
+#[ignore]
+async fn analyze_anyway_rolls_back_on_error() {
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(1)
+        .connect("postgres://tusk:tusk@127.0.0.1:55432/tusk_test")
+        .await
+        .unwrap();
+    let table = "week5_demo_err";
+    seed_demo_table(&pool, table).await;
+
+    let mut conn = pool.acquire().await.unwrap();
+    sqlx::query("BEGIN").fetch_all(&mut *conn).await.unwrap();
+    let _ = sqlx::query("EXPLAIN ANALYZE DELETE FROM no_such_table_x9")
+        .fetch_all(&mut *conn)
+        .await;
+    sqlx::query("ROLLBACK").fetch_all(&mut *conn).await.unwrap();
+    drop(conn);
+
+    let count: (i64,) = sqlx::query_as(&format!("SELECT count(*) FROM {table}"))
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count.0, 3);
+}
