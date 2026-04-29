@@ -39,7 +39,9 @@ describe("FindSimilarModal", () => {
     );
     const select = screen.getByRole("combobox");
     fireEvent.change(select, { target: { value: "<->" } });
-    const pre = screen.getByText((content) => content.includes("<->") && !content.includes("—"));
+    const pre = screen.getByText(
+      (content) => content.includes("<->") && !content.includes("—"),
+    );
     expect(pre).toBeInTheDocument();
   });
 });

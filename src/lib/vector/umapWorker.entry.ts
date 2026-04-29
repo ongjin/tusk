@@ -15,9 +15,7 @@ self.addEventListener("message", (ev: MessageEvent<RunMsg>) => {
   try {
     const data: number[][] = new Array(msg.count);
     for (let i = 0; i < msg.count; i++) {
-      data[i] = Array.from(
-        msg.vecs.subarray(i * msg.dim, (i + 1) * msg.dim),
-      );
+      data[i] = Array.from(msg.vecs.subarray(i * msg.dim, (i + 1) * msg.dim));
     }
     const umap = new UMAP({
       nComponents: 2,

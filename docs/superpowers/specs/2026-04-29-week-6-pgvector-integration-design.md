@@ -236,7 +236,12 @@ interface VectorMetaState {
   byConn: Record<string, VectorColumn[]>;
   loading: Record<string, boolean>;
   refresh(connId: string): Promise<void>;
-  hasVectorAt(connId: string, schema: string, table: string, column: string): VectorColumn | null;
+  hasVectorAt(
+    connId: string,
+    schema: string,
+    table: string,
+    column: string,
+  ): VectorColumn | null;
 }
 ```
 
@@ -295,11 +300,11 @@ State (in `Tab.umap`):
 
 ```ts
 interface UmapTabState {
-  sample: number;          // default 10000
-  nNeighbors: number;      // default 15
-  minDist: number;         // default 0.1
+  sample: number; // default 10000
+  nNeighbors: number; // default 15
+  minDist: number; // default 0.1
   status: "idle" | "sampling" | "computing" | "ready" | "error";
-  progress: number;        // 0..1 during computing
+  progress: number; // 0..1 during computing
   error?: string;
   points?: { x: number; y: number; pkJson: Record<string, unknown> }[];
   selectedIdx?: number;
@@ -400,14 +405,14 @@ Create index form:
 
 ### 4.5 Error handling
 
-| Site | Failure | UI |
-| --- | --- | --- |
-| `list_vector_columns` errors | network/pool dead | toast; keep cached `[]`; no badges shown |
-| pgvector not installed | empty result | silent — vector entry points naturally absent |
-| `sample_vectors` timeout | toast "Sampling timed out (30s) — try a smaller sample size"; UMAP tab status="error" |
-| `sample_vectors` other error | toast; UMAP tab status="error" with retry button |
-| `umapWorker` error | UMAP tab status="error"; retry button |
-| `list_vector_indexes` errors | toast; panel shows empty + retry button |
+| Site                                | Failure                                                                                                             | UI                                            |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `list_vector_columns` errors        | network/pool dead                                                                                                   | toast; keep cached `[]`; no badges shown      |
+| pgvector not installed              | empty result                                                                                                        | silent — vector entry points naturally absent |
+| `sample_vectors` timeout            | toast "Sampling timed out (30s) — try a smaller sample size"; UMAP tab status="error"                               |
+| `sample_vectors` other error        | toast; UMAP tab status="error" with retry button                                                                    |
+| `umapWorker` error                  | UMAP tab status="error"; retry button                                                                               |
+| `list_vector_indexes` errors        | toast; panel shows empty + retry button                                                                             |
 | `buildAnnSql` invalid input (no PK) | "Find similar rows" menu item disabled with tooltip "Result has no primary key" (mirrors Week 3 inline-edit gating) |
 
 ---

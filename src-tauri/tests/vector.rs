@@ -62,9 +62,7 @@ async fn list_vector_columns_returns_dim_and_index_flag() {
 
     with_state!(registry, app, state);
 
-    let cols: Vec<VectorColumn> = list_vector_columns(state, conn_id.clone())
-        .await
-        .unwrap();
+    let cols: Vec<VectorColumn> = list_vector_columns(state, conn_id.clone()).await.unwrap();
     let a = cols.iter().find(|c| c.table == "w6_vc_a").unwrap();
     let b = cols.iter().find(|c| c.table == "w6_vc_b").unwrap();
     assert_eq!(a.dim, 8);

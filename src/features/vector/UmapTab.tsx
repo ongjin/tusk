@@ -49,7 +49,7 @@ export function UmapTab({ tabId }: { tabId: string }) {
       />
       <div className="relative">
         {(u.status === "sampling" || u.status === "computing") && (
-          <div className="text-muted-foreground absolute right-3 top-3 z-10 text-xs">
+          <div className="text-muted-foreground absolute top-3 right-3 z-10 text-xs">
             {u.status} {Math.round(u.progress * 100)}%
           </div>
         )}

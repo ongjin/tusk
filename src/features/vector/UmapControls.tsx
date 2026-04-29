@@ -36,7 +36,9 @@ export function UmapControls({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-muted-foreground">n_neighbors: {nNeighbors}</label>
+        <label className="text-muted-foreground">
+          n_neighbors: {nNeighbors}
+        </label>
         <input
           aria-label="n_neighbors"
           type="range"
@@ -47,7 +49,9 @@ export function UmapControls({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-muted-foreground">min_dist: {minDist.toFixed(2)}</label>
+        <label className="text-muted-foreground">
+          min_dist: {minDist.toFixed(2)}
+        </label>
         <input
           aria-label="min_dist"
           type="range"

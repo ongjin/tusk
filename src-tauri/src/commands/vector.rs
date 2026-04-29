@@ -50,7 +50,9 @@ use tauri::State;
 
 use crate::db::pool::ConnectionRegistry;
 use crate::db::vector_introspect::SQL_LIST_VECTOR_COLUMNS;
-use crate::db::vector_introspect::{build_sample_vectors_sql, parse_reloptions, SQL_LIST_VECTOR_INDEXES};
+use crate::db::vector_introspect::{
+    build_sample_vectors_sql, parse_reloptions, SQL_LIST_VECTOR_INDEXES,
+};
 use crate::errors::{TuskError, TuskResult};
 
 #[tauri::command]

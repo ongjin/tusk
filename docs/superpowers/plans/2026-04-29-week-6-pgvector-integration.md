@@ -30,6 +30,7 @@
 **Goal:** Postgres in docker compose has pgvector; all Week 1–5 tests still pass.
 
 **Files:**
+
 - Modify: `infra/postgres/docker-compose.yml`
 
 **Steps:**
@@ -99,6 +100,7 @@ git commit -m "chore(week6): switch postgres image to pgvector/pgvector:pg16"
 **Goal:** Define the public types in their own module so `db/vector_introspect.rs` (next task) can use them. No commands yet.
 
 **Files:**
+
 - Create: `src-tauri/src/commands/vector.rs`
 - Modify: `src-tauri/src/commands/mod.rs`
 
@@ -197,6 +199,7 @@ git commit -m "feat(week6): commands/vector types + quote_ident"
 **Goal:** Pure SQL builders + reloption parser. TDD with unit tests for the parser.
 
 **Files:**
+
 - Create: `src-tauri/src/db/vector_introspect.rs`
 - Modify: `src-tauri/src/db/mod.rs`
 
@@ -397,6 +400,7 @@ git commit -m "feat(week6): vector_introspect SQL helpers + reloption parser"
 **Goal:** Wire the SQL into a `#[tauri::command]`. Register in `lib.rs`.
 
 **Files:**
+
 - Modify: `src-tauri/src/commands/vector.rs`
 - Modify: `src-tauri/src/lib.rs`
 
@@ -477,6 +481,7 @@ git commit -m "feat(week6): list_vector_columns command"
 ## Task 4: Rust — `list_vector_indexes` command
 
 **Files:**
+
 - Modify: `src-tauri/src/commands/vector.rs`
 - Modify: `src-tauri/src/lib.rs`
 
@@ -565,6 +570,7 @@ git commit -m "feat(week6): list_vector_indexes command"
 ## Task 5: Rust — `sample_vectors` command
 
 **Files:**
+
 - Modify: `src-tauri/src/commands/vector.rs`
 - Modify: `src-tauri/src/lib.rs`
 
@@ -731,6 +737,7 @@ git commit -m "feat(week6): sample_vectors command with statement timeout"
 ## Task 6: Rust — integration tests `tests/vector.rs`
 
 **Files:**
+
 - Create: `src-tauri/tests/vector.rs`
 - Modify: `src-tauri/tests/common.rs` if a vector-aware DB helper is needed (otherwise leave alone)
 
@@ -915,6 +922,7 @@ git commit -m "test(week6): vector introspection + sample integration tests"
 ## Task 7: Frontend — `lib/vector/types.ts`
 
 **Files:**
+
 - Create: `src/lib/vector/types.ts`
 
 **Steps:**
@@ -985,6 +993,7 @@ git commit -m "feat(week6): vector types"
 ## Task 8: Frontend — typed Tauri wrappers
 
 **Files:**
+
 - Modify: `src/lib/tauri.ts`
 
 **Steps:**
@@ -1122,6 +1131,7 @@ git commit -m "feat(week6): typed wrappers for vector commands"
 ## Task 9: Frontend — `lib/vector/annSql.ts` (TDD)
 
 **Files:**
+
 - Create: `src/lib/vector/annSql.ts`
 - Create: `src/lib/vector/annSql.test.ts`
 
@@ -1148,7 +1158,9 @@ describe("buildAnnSql", () => {
       limit: 20,
     });
     expect(sql).toContain('"public"."items"');
-    expect(sql).toContain('"embedding" <=> \'[0.1,0.2,0.3]\'::vector AS distance');
+    expect(sql).toContain(
+      "\"embedding\" <=> '[0.1,0.2,0.3]'::vector AS distance",
+    );
     expect(sql).toMatch(/SELECT "id",/);
     expect(sql).toContain("ORDER BY distance");
     expect(sql).toContain("LIMIT 20");
@@ -1287,6 +1299,7 @@ git commit -m "feat(week6): buildAnnSql with operator + identifier escaping + li
 ## Task 10: Frontend — `lib/vector/cellRender.ts` (TDD for helpers)
 
 **Files:**
+
 - Create: `src/lib/vector/cellRender.ts`
 - Create: `src/lib/vector/cellRender.test.ts`
 
@@ -1392,6 +1405,7 @@ git commit -m "feat(week6): l2Norm + sparkline helpers"
 ## Task 11: Frontend — `useVectorMeta` store + connect-time refresh
 
 **Files:**
+
 - Create: `src/store/useVectorMeta.ts`
 - Modify: `src/store/connections.ts` (only the `connect` action — add a one-line `refresh()` call)
 
@@ -1500,6 +1514,7 @@ git commit -m "feat(week6): useVectorMeta store + connect-time refresh"
 ## Task 12: Frontend — SchemaTree vector badges + ⚠
 
 **Files:**
+
 - Modify: `src/features/sidebar/SchemaTree.tsx`
 
 **Steps:**
@@ -1529,28 +1544,30 @@ const hasVectorAt = useVectorMeta((s) => s.hasVectorAt);
 In the column row JSX, after the column name span, add:
 
 ```tsx
-{(() => {
-  const v = hasVectorAt(connId, schemaName, tableName, columnName);
-  if (!v) return null;
-  return (
-    <>
-      <span
-        className="text-muted-foreground ml-2 rounded bg-blue-500/10 px-1 text-[10px]"
-        title={`vector(${v.dim})`}
-      >
-        vec({v.dim})
-      </span>
-      {!v.hasIndex && (
+{
+  (() => {
+    const v = hasVectorAt(connId, schemaName, tableName, columnName);
+    if (!v) return null;
+    return (
+      <>
         <span
-          className="ml-1 text-amber-600"
-          title="No HNSW/IVFFlat index — sequential scan only"
+          className="text-muted-foreground ml-2 rounded bg-blue-500/10 px-1 text-[10px]"
+          title={`vector(${v.dim})`}
         >
-          ⚠
+          vec({v.dim})
         </span>
-      )}
-    </>
-  );
-})()}
+        {!v.hasIndex && (
+          <span
+            className="ml-1 text-amber-600"
+            title="No HNSW/IVFFlat index — sequential scan only"
+          >
+            ⚠
+          </span>
+        )}
+      </>
+    );
+  })();
+}
 ```
 
 (Adapt `connId`, `schemaName`, `tableName`, `columnName` to whatever variable names already exist in the file; do not rename them.)
@@ -1575,6 +1592,7 @@ git commit -m "feat(week6): SchemaTree vec(N) badge + missing-index warning"
 **Goal:** Add column context menu "Visualize (UMAP)" and table context menu "Vector indexes". Both fire callbacks the parent will wire (UMAP tab open / VectorIndexPanel open). For now, callbacks are passed via a small zustand "vectorActions" store so we don't need to thread props through the tree.
 
 **Files:**
+
 - Create: `src/store/useVectorActions.ts`
 - Modify: `src/features/sidebar/SchemaTree.tsx`
 
@@ -1624,44 +1642,48 @@ Locate the existing column row and table row context-menu setup. Use the same pr
 For column rows:
 
 ```tsx
-{(() => {
-  const v = hasVectorAt(connId, schemaName, tableName, columnName);
-  if (!v) return null;
-  return (
-    <ContextMenuItem
-      onSelect={() => {
-        const open = useVectorActions.getState().openUmap;
-        // pkCols come from the table's PK lookup — see Step 3
-        if (open) open({
-          connId,
-          schema: schemaName,
-          table: tableName,
-          vecCol: columnName,
-          pkCols: pkColsForTable,
-          dim: v.dim,
-        });
-      }}
-    >
-      Visualize (UMAP)
-    </ContextMenuItem>
-  );
-})()}
+{
+  (() => {
+    const v = hasVectorAt(connId, schemaName, tableName, columnName);
+    if (!v) return null;
+    return (
+      <ContextMenuItem
+        onSelect={() => {
+          const open = useVectorActions.getState().openUmap;
+          // pkCols come from the table's PK lookup — see Step 3
+          if (open)
+            open({
+              connId,
+              schema: schemaName,
+              table: tableName,
+              vecCol: columnName,
+              pkCols: pkColsForTable,
+              dim: v.dim,
+            });
+        }}
+      >
+        Visualize (UMAP)
+      </ContextMenuItem>
+    );
+  })();
+}
 ```
 
 For table rows:
 
 ```tsx
-{tableHasVector(connId, schemaName, tableName) && (
-  <ContextMenuItem
-    onSelect={() => {
-      const open = useVectorActions.getState().openIndexPanel;
-      if (open)
-        open({ connId, schema: schemaName, table: tableName });
-    }}
-  >
-    Vector indexes
-  </ContextMenuItem>
-)}
+{
+  tableHasVector(connId, schemaName, tableName) && (
+    <ContextMenuItem
+      onSelect={() => {
+        const open = useVectorActions.getState().openIndexPanel;
+        if (open) open({ connId, schema: schemaName, table: tableName });
+      }}
+    >
+      Vector indexes
+    </ContextMenuItem>
+  );
+}
 ```
 
 - [ ] **Step 3: Resolve `pkColsForTable`**
@@ -1669,7 +1691,7 @@ For table rows:
 If SchemaTree already loads PK info per table (likely, from `list_columns`), reuse it. If not, fall back to: when "Visualize" is clicked, the UMAP tab itself queries PK on mount. To keep the menu simple, **pass an empty array for now**:
 
 ```tsx
-pkCols: []
+pkCols: [];
 ```
 
 UmapTab (Task 21) will resolve PK columns via `list_columns` if `pkCols` is empty. Add a TODO comment in the menu so the executing engineer knows: `// pkCols resolved by UmapTab if empty`.
@@ -1692,6 +1714,7 @@ git commit -m "feat(week6): SchemaTree context menus for Visualize + Vector inde
 ## Task 14: Frontend — ResultsGrid vector cell renderer
 
 **Files:**
+
 - Modify: `src/features/results/ResultsGrid.tsx`
 
 **Steps:**
@@ -1749,22 +1772,24 @@ if (isVectorCell(cell)) return <VectorCell vec={cell.value} />;
 Find the existing cell context menu (Week 3 added Copy / Set NULL / etc.). Append:
 
 ```tsx
-{isVectorCell(cell) && pkCols.length > 0 && (
-  <ContextMenuItem
-    onSelect={() =>
-      useVectorActions.getState().openFindSimilar?.({
-        connId,
-        schema: tableSchema,
-        table: tableName,
-        vecCol: columnName,
-        pkCols,
-        queryVector: cell.value,
-      })
-    }
-  >
-    Find similar rows
-  </ContextMenuItem>
-)}
+{
+  isVectorCell(cell) && pkCols.length > 0 && (
+    <ContextMenuItem
+      onSelect={() =>
+        useVectorActions.getState().openFindSimilar?.({
+          connId,
+          schema: tableSchema,
+          table: tableName,
+          vecCol: columnName,
+          pkCols,
+          queryVector: cell.value,
+        })
+      }
+    >
+      Find similar rows
+    </ContextMenuItem>
+  );
+}
 ```
 
 (`useVectorActions` will get a new field `openFindSimilar` — add it to the store now.)
@@ -1800,32 +1825,34 @@ setOpenFindSimilar: (fn) => set({ openFindSimilar: fn }),
 In the same cell render path, when the existing double-click handler runs and `isVectorCell(cell)`, short-circuit the inline edit and open a tiny read-only modal showing the raw array. Use the existing modal primitive in the codebase (likely `<Dialog>` from shadcn). If a quick path exists (e.g. `confirm()`-style), use it; otherwise prepare a minimal Dialog:
 
 ```tsx
-{vectorRawOpen && (
-  <Dialog open onOpenChange={() => setVectorRawOpen(null)}>
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Vector value</DialogTitle>
-      </DialogHeader>
-      <div className="text-muted-foreground text-xs">
-        {formatVectorSummary(vectorRawOpen.value)}
-      </div>
-      <pre className="bg-muted max-h-[60vh] overflow-auto rounded p-2 text-[10px]">
-        [{vectorRawOpen.value.join(", ")}]
-      </pre>
-      <DialogFooter>
-        <Button
-          onClick={() =>
-            navigator.clipboard.writeText(
-              `[${vectorRawOpen.value.join(",")}]`,
-            )
-          }
-        >
-          Copy
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
-)}
+{
+  vectorRawOpen && (
+    <Dialog open onOpenChange={() => setVectorRawOpen(null)}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Vector value</DialogTitle>
+        </DialogHeader>
+        <div className="text-muted-foreground text-xs">
+          {formatVectorSummary(vectorRawOpen.value)}
+        </div>
+        <pre className="bg-muted max-h-[60vh] overflow-auto rounded p-2 text-[10px]">
+          [{vectorRawOpen.value.join(", ")}]
+        </pre>
+        <DialogFooter>
+          <Button
+            onClick={() =>
+              navigator.clipboard.writeText(
+                `[${vectorRawOpen.value.join(",")}]`,
+              )
+            }
+          >
+            Copy
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 ```
 
 with `vectorRawOpen` state in the component.
@@ -1848,6 +1875,7 @@ git commit -m "feat(week6): vector cell sparkline + Find similar menu + raw moda
 ## Task 15: Frontend — `FindSimilarModal`
 
 **Files:**
+
 - Create: `src/features/vector/FindSimilarModal.tsx`
 - Create: `src/features/vector/FindSimilarModal.test.tsx`
 - Modify: `src/App.tsx` (or wherever top-level overlays live) to register the action handler
@@ -1871,10 +1899,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { buildAnnSql } from "@/lib/vector/annSql";
-import {
-  ANN_OPERATOR_LABELS,
-  type AnnOperator,
-} from "@/lib/vector/types";
+import { ANN_OPERATOR_LABELS, type AnnOperator } from "@/lib/vector/types";
 import { useTabs } from "@/store/tabs";
 
 export interface FindSimilarOpen {
@@ -1980,7 +2005,10 @@ export function FindSimilarModal({ open, onClose, onRun }: Props) {
 Find the file that already mounts global overlays (search for `Toaster`, `<Dialog`, etc.). Likely `src/App.tsx`. Add:
 
 ```tsx
-import { FindSimilarModal, type FindSimilarOpen } from "@/features/vector/FindSimilarModal";
+import {
+  FindSimilarModal,
+  type FindSimilarOpen,
+} from "@/features/vector/FindSimilarModal";
 import { useVectorActions } from "@/store/useVectorActions";
 import { useEffect, useState } from "react";
 
@@ -1996,8 +2024,10 @@ useEffect(() => {
 <FindSimilarModal
   open={findSimilar}
   onClose={() => setFindSimilar(null)}
-  onRun={() => { /* tab is already active; results pane will show busy state once run is triggered */ }}
-/>
+  onRun={() => {
+    /* tab is already active; results pane will show busy state once run is triggered */
+  }}
+/>;
 ```
 
 The `Run` button creates a new tab and switches to it, but actually executing the SQL requires triggering the run action. Wire it via the `useTabs` extension below.
@@ -2111,6 +2141,7 @@ git commit -m "feat(week6): FindSimilarModal + tab.requestRun"
 **Goal:** Add an optional `umap?: UmapTabState` field to the existing `Tab` and a `newUmapTab(...)` action. EditorPane renders `UmapTab` when present, else the existing editor + results.
 
 **Files:**
+
 - Modify: `src/store/tabs.ts`
 - Modify: `src/features/editor/EditorPane.tsx`
 
@@ -2259,6 +2290,7 @@ git commit -m "feat(week6): Tab.umap field + EditorPane routes UmapTab"
 ## Task 17: Frontend — `VectorIndexPanel` + Create index helper
 
 **Files:**
+
 - Create: `src/features/vector/VectorIndexPanel.tsx`
 - Modify: `src/App.tsx` to mount + register the action
 
@@ -2323,12 +2355,8 @@ export function VectorIndexPanel({ open, onClose }: Props) {
           </SheetTitle>
         </SheetHeader>
         <div className="mt-4 flex flex-col gap-4 text-xs">
-          {loading && (
-            <div className="text-muted-foreground">Loading…</div>
-          )}
-          {err && (
-            <div className="text-red-500">Error: {err}</div>
-          )}
+          {loading && <div className="text-muted-foreground">Loading…</div>}
+          {err && <div className="text-red-500">Error: {err}</div>}
           {!loading && !err && indexes.length === 0 && (
             <div className="text-muted-foreground">
               No HNSW or IVFFlat indexes on this table.
@@ -2501,7 +2529,10 @@ If `Sheet` is not yet a shadcn component in the project, add it: `npx shadcn@lat
 - [ ] **Step 2: Mount + register handler in `App.tsx`**
 
 ```tsx
-import { VectorIndexPanel, type VectorIndexPanelOpen } from "@/features/vector/VectorIndexPanel";
+import {
+  VectorIndexPanel,
+  type VectorIndexPanelOpen,
+} from "@/features/vector/VectorIndexPanel";
 
 const [indexPanel, setIndexPanel] = useState<VectorIndexPanelOpen | null>(null);
 const setOpenIndexPanel = useVectorActions((s) => s.setOpenIndexPanel);
@@ -2511,7 +2542,7 @@ useEffect(() => {
 }, [setOpenIndexPanel]);
 
 // in JSX:
-<VectorIndexPanel open={indexPanel} onClose={() => setIndexPanel(null)} />
+<VectorIndexPanel open={indexPanel} onClose={() => setIndexPanel(null)} />;
 ```
 
 - [ ] **Step 3: Typecheck + lint**
@@ -2534,6 +2565,7 @@ git commit -m "feat(week6): VectorIndexPanel + Create index helper"
 ## Task 18: Frontend — UMAP worker + ts module
 
 **Files:**
+
 - Create: `src/lib/vector/umapWorker.entry.ts`
 - Create: `src/lib/vector/umapWorker.ts`
 - Modify: `package.json` (add `umap-js`)
@@ -2569,9 +2601,7 @@ self.addEventListener("message", (ev: MessageEvent<RunMsg>) => {
   try {
     const data: number[][] = new Array(msg.count);
     for (let i = 0; i < msg.count; i++) {
-      data[i] = Array.from(
-        msg.vecs.subarray(i * msg.dim, (i + 1) * msg.dim),
-      );
+      data[i] = Array.from(msg.vecs.subarray(i * msg.dim, (i + 1) * msg.dim));
     }
     const umap = new UMAP({
       nComponents: 2,
@@ -2673,6 +2703,7 @@ git commit -m "feat(week6): umap-js Web Worker wrapper"
 ## Task 19: Frontend — `UmapControls`
 
 **Files:**
+
 - Create: `src/features/vector/UmapControls.tsx`
 - Create: `src/features/vector/UmapControls.test.tsx`
 
@@ -2771,7 +2802,9 @@ export function UmapControls({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-muted-foreground">n_neighbors: {nNeighbors}</label>
+        <label className="text-muted-foreground">
+          n_neighbors: {nNeighbors}
+        </label>
         <input
           aria-label="n_neighbors"
           type="range"
@@ -2782,7 +2815,9 @@ export function UmapControls({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-muted-foreground">min_dist: {minDist.toFixed(2)}</label>
+        <label className="text-muted-foreground">
+          min_dist: {minDist.toFixed(2)}
+        </label>
         <input
           aria-label="min_dist"
           type="range"
@@ -2820,6 +2855,7 @@ git commit -m "feat(week6): UmapControls"
 ## Task 20: Frontend — `UmapScatter`
 
 **Files:**
+
 - Create: `src/features/vector/UmapScatter.tsx`
 
 **Steps:**
@@ -2861,8 +2897,10 @@ export function UmapScatter({ points, selectedIdx, onSelect }: Props) {
       ctx.clearRect(0, 0, w, h);
       if (points.length === 0) return;
 
-      let minX = points[0].x, maxX = points[0].x;
-      let minY = points[0].y, maxY = points[0].y;
+      let minX = points[0].x,
+        maxX = points[0].x;
+      let minY = points[0].y,
+        maxY = points[0].y;
       for (const p of points) {
         if (p.x < minX) minX = p.x;
         if (p.x > maxX) maxX = p.x;
@@ -2941,8 +2979,11 @@ export function UmapScatter({ points, selectedIdx, onSelect }: Props) {
       dragging = false;
     };
     const onClick = (e: MouseEvent) => {
-      const project = (c as unknown as { _project?: (x: number, y: number) => [number, number] })
-        ._project;
+      const project = (
+        c as unknown as {
+          _project?: (x: number, y: number) => [number, number];
+        }
+      )._project;
       if (!project) return;
       const rect = c.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -3002,6 +3043,7 @@ git commit -m "feat(week6): UmapScatter canvas with zoom/pan/click"
 ## Task 21: Frontend — `UmapTab` orchestrator
 
 **Files:**
+
 - Modify: `src/features/vector/UmapTab.tsx` (replace stub)
 
 **Steps:**
@@ -3061,12 +3103,12 @@ export function UmapTab({ tabId }: { tabId: string }) {
       />
       <div className="relative">
         {(u.status === "sampling" || u.status === "computing") && (
-          <div className="text-muted-foreground absolute right-3 top-3 z-10 text-xs">
+          <div className="text-muted-foreground absolute top-3 right-3 z-10 text-xs">
             {u.status} {Math.round(u.progress * 100)}%
           </div>
         )}
         {u.status === "error" && (
-          <div className="text-red-500 absolute inset-0 flex items-center justify-center text-sm">
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-red-500">
             {u.error ?? "UMAP failed"}
           </div>
         )}
@@ -3110,7 +3152,8 @@ async function resolvePkAndStart(
     if (pkCols.length === 0) {
       patch(tabId, {
         status: "error",
-        error: "Table has no primary key — UMAP needs PK to map points back to rows.",
+        error:
+          "Table has no primary key — UMAP needs PK to map points back to rows.",
       });
       return;
     }
@@ -3230,6 +3273,7 @@ git commit -m "feat(week6): UmapTab orchestrator (sample → worker → scatter 
 ## Task 22: Manual verification document
 
 **Files:**
+
 - Create: `docs/superpowers/plans/manual-verification-week-6.md`
 
 **Steps:**

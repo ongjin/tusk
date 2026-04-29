@@ -150,11 +150,19 @@ function TableBranch({
         onContextMenu={(e) => {
           if (!tableHasVector(connectionId, schema, table)) return;
           e.preventDefault();
-          setTableMenu({ x: e.clientX, y: e.clientY, connId: connectionId, schema, table });
+          setTableMenu({
+            x: e.clientX,
+            y: e.clientY,
+            connId: connectionId,
+            schema,
+            table,
+          });
         }}
       >
         {cols?.state === "loading" && <Hint indent={indent + 1}>loading…</Hint>}
-        {cols?.state === "error" && <Hint indent={indent + 1}>{cols.error}</Hint>}
+        {cols?.state === "error" && (
+          <Hint indent={indent + 1}>{cols.error}</Hint>
+        )}
         {cols?.state === "ready" &&
           cols.data!.map((c) => (
             <div

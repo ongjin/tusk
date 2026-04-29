@@ -14,7 +14,9 @@ describe("buildAnnSql", () => {
       limit: 20,
     });
     expect(sql).toContain('"public"."items"');
-    expect(sql).toContain('"embedding" <=> \'[0.1,0.2,0.3]\'::vector AS distance');
+    expect(sql).toContain(
+      "\"embedding\" <=> '[0.1,0.2,0.3]'::vector AS distance",
+    );
     expect(sql).toMatch(/SELECT "id",/);
     expect(sql).toContain("ORDER BY distance");
     expect(sql).toContain("LIMIT 20");

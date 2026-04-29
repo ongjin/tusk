@@ -10,10 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { buildAnnSql } from "@/lib/vector/annSql";
-import {
-  ANN_OPERATOR_LABELS,
-  type AnnOperator,
-} from "@/lib/vector/types";
+import { ANN_OPERATOR_LABELS, type AnnOperator } from "@/lib/vector/types";
 import { useTabs } from "@/store/tabs";
 
 export interface FindSimilarOpen {

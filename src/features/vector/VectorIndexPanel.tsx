@@ -53,12 +53,8 @@ export function VectorIndexPanel({ open, onClose }: Props) {
           </SheetTitle>
         </SheetHeader>
         <div className="mt-4 flex flex-col gap-4 text-xs">
-          {loading && (
-            <div className="text-muted-foreground">Loading…</div>
-          )}
-          {err && (
-            <div className="text-red-500">Error: {err}</div>
-          )}
+          {loading && <div className="text-muted-foreground">Loading…</div>}
+          {err && <div className="text-red-500">Error: {err}</div>}
           {!loading && !err && indexes.length === 0 && (
             <div className="text-muted-foreground">
               No HNSW or IVFFlat indexes on this table.

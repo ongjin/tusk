@@ -30,8 +30,10 @@ export function UmapScatter({ points, selectedIdx, onSelect }: Props) {
       ctx.clearRect(0, 0, w, h);
       if (points.length === 0) return;
 
-      let minX = points[0].x, maxX = points[0].x;
-      let minY = points[0].y, maxY = points[0].y;
+      let minX = points[0].x,
+        maxX = points[0].x;
+      let minY = points[0].y,
+        maxY = points[0].y;
       for (const p of points) {
         if (p.x < minX) minX = p.x;
         if (p.x > maxX) maxX = p.x;
@@ -110,8 +112,11 @@ export function UmapScatter({ points, selectedIdx, onSelect }: Props) {
       dragging = false;
     };
     const onClick = (e: MouseEvent) => {
-      const project = (c as unknown as { _project?: (x: number, y: number) => [number, number] })
-        ._project;
+      const project = (
+        c as unknown as {
+          _project?: (x: number, y: number) => [number, number];
+        }
+      )._project;
       if (!project) return;
       const rect = c.getBoundingClientRect();
       const mx = e.clientX - rect.left;
