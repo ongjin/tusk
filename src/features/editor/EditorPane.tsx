@@ -13,6 +13,7 @@ import { useTabs } from "@/store/tabs";
 import { ResultsGrid } from "@/features/results/ResultsGrid";
 import { ResultsHeader } from "@/features/results/ResultsHeader";
 import { ExplainView } from "@/features/explain/ExplainView";
+import { runExplainGate } from "@/features/explain/explainGate";
 
 import { runGate } from "@/lib/ai/runGate";
 import { invoke } from "@tauri-apps/api/core";
@@ -75,6 +76,30 @@ export function EditorPane() {
     setResult,
   ]);
 
+  const runExplainAction = useCallback(
+    async (analyzeAnyway = false) => {
+      if (!connectionForTab) {
+        toast.error("Select a connected database first");
+        return;
+      }
+      setBusy(activeTab.id, true);
+      try {
+        const r = await runExplainGate({
+          connId: connectionForTab,
+          sql: activeTab.sql,
+          allowAnalyzeAnyway: analyzeAnyway,
+        });
+        if (r) useTabs.getState().setPlan(activeTab.id, r, activeTab.sql);
+        else useTabs.getState().setBusy(activeTab.id, false);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Explain failed";
+        setError(activeTab.id, msg);
+        toast.error(msg);
+      }
+    },
+    [activeTab.id, activeTab.sql, connectionForTab, setBusy, setError],
+  );
+
   useEffect(() => {
     const mod = platformModifier();
     function onKey(e: KeyboardEvent) {
@@ -99,11 +124,21 @@ export function EditorPane() {
         }
         setSelection(sel);
         setShowCmdK(true);
+      } else if (e.key.toLowerCase() === "e" && e.shiftKey) {
+        e.preventDefault();
+        runExplainAction(false);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activeTab.id, closeTab, connectionForTab, newTab, run]);
+  }, [
+    activeTab.id,
+    closeTab,
+    connectionForTab,
+    newTab,
+    run,
+    runExplainAction,
+  ]);
 
   const handleCmdKApply = useCallback(
     async (sql: string, meta: ApplyMeta) => {
@@ -159,9 +194,20 @@ export function EditorPane() {
               ? `Running on: ${connectionName}`
               : "No connection"}
           </span>
-          <Button size="sm" onClick={run} disabled={activeTab.busy}>
-            <Play /> Run ({platformModifier() === "meta" ? "⌘" : "Ctrl"}+Enter)
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={run} disabled={activeTab.busy}>
+              <Play /> Run ({platformModifier() === "meta" ? "⌘" : "Ctrl"}
+              +Enter)
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => runExplainAction(false)}
+              disabled={activeTab.busy}
+            >
+              Explain ({platformModifier() === "meta" ? "⌘⇧" : "Ctrl+Shift+"}E)
+            </Button>
+          </div>
         </div>
         <div className="min-h-0 flex-1">
           <Editor
