@@ -27,6 +27,8 @@ export interface Tab {
 interface TabsState {
   tabs: Tab[];
   activeId: string;
+  runRequestId: number;
+  requestRun: () => void;
   newTab: (connectionId: string | null) => string;
   closeTab: (id: string) => void;
   updateSql: (id: string, sql: string) => void;
@@ -57,6 +59,11 @@ const initialTab: Tab = {
 export const useTabs = create<TabsState>((set) => ({
   tabs: [initialTab],
   activeId: initialId,
+  runRequestId: 0,
+
+  requestRun() {
+    set((s) => ({ runRequestId: s.runRequestId + 1 }));
+  },
 
   newTab(connectionId) {
     const id = crypto.randomUUID();

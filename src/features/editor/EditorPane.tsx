@@ -76,6 +76,14 @@ export function EditorPane() {
     setResult,
   ]);
 
+  const runRequestId = useTabs((s) => s.runRequestId);
+  useEffect(() => {
+    if (runRequestId > 0) {
+      void run();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runRequestId]);
+
   const runExplainAction = useCallback(
     async (analyzeAnyway = false) => {
       if (!connectionForTab) {

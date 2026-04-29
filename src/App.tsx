@@ -5,6 +5,8 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { toast } from "sonner";
 
+import { FindSimilarModal, type FindSimilarOpen } from "@/features/vector/FindSimilarModal";
+import { useVectorActions } from "@/store/useVectorActions";
 import { ConnectionForm } from "@/features/connections/ConnectionForm";
 import { ConnectionList } from "@/features/connections/ConnectionList";
 import { HistoryPalette } from "@/features/history/HistoryPalette";
@@ -44,6 +46,12 @@ function App() {
   // preventDefault is required).
   const [showPalette, setShowPalette] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [findSimilar, setFindSimilar] = useState<FindSimilarOpen | null>(null);
+  const setOpenFindSimilar = useVectorActions((s) => s.setOpenFindSimilar);
+  useEffect(() => {
+    setOpenFindSimilar((args) => setFindSimilar(args));
+    return () => setOpenFindSimilar(null);
+  }, [setOpenFindSimilar]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
@@ -234,6 +242,10 @@ function App() {
     <div className="bg-background text-foreground grid h-full grid-cols-[280px_1fr]">
       <ConfirmModalHost />
       <DestructiveModalHost />
+      <FindSimilarModal
+        open={findSimilar}
+        onClose={() => setFindSimilar(null)}
+      />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       {showPalette && (
         <HistoryPalette
