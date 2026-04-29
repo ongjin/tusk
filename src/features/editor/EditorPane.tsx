@@ -196,9 +196,13 @@ export function EditorPane() {
               useTabs.getState().setResultMode(activeTab.id, mode)
             }
           />
-          {activeTab.resultMode === "plan" && activeTab.lastPlan ? (
+          {activeTab.resultMode === "plan" &&
+          activeTab.lastPlan &&
+          connectionForTab ? (
             <ExplainView
               tabId={activeTab.id}
+              connId={connectionForTab}
+              sql={activeTab.sql}
               result={activeTab.lastPlan.result}
             />
           ) : (

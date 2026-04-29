@@ -2,15 +2,18 @@ import type { ExplainResult, PlanNode } from "@/lib/explain/planTypes";
 import { useTabs } from "@/store/tabs";
 
 import { IndexCandidates } from "./IndexCandidates";
+import { PlanAiStrip } from "./PlanAiStrip";
 import { PlanNodeDetail } from "./PlanNodeDetail";
 import { PlanTree } from "./PlanTree";
 
 interface Props {
   tabId: string;
+  connId: string;
+  sql: string;
   result: ExplainResult;
 }
 
-export function ExplainView({ tabId, result }: Props) {
+export function ExplainView({ tabId, connId, sql, result }: Props) {
   const tab = useTabs((s) => s.tabs.find((t) => t.id === tabId));
   const selectedPath = tab?.lastPlan?.selectedNodePath ?? [];
   const setSelectedNodePath = useTabs((s) => s.setSelectedNodePath);
@@ -52,15 +55,19 @@ export function ExplainView({ tabId, result }: Props) {
       </div>
       <IndexCandidates
         candidates={result.verifiedCandidates}
-        onInsert={(sql) => {
+        onInsert={(sqlText) => {
           const t = useTabs.getState();
-          const tab = t.tabs.find((x) => x.id === tabId);
-          if (!tab) return;
+          const found = t.tabs.find((x) => x.id === tabId);
+          if (!found) return;
           const next =
-            tab.sql + (tab.sql.endsWith("\n") ? "" : "\n") + sql + "\n";
+            found.sql +
+            (found.sql.endsWith("\n") ? "" : "\n") +
+            sqlText +
+            "\n";
           t.updateSql(tabId, next);
         }}
       />
+      <PlanAiStrip tabId={tabId} connId={connId} result={result} sql={sql} />
     </div>
   );
 }
