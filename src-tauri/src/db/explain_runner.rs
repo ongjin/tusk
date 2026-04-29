@@ -75,6 +75,8 @@ pub async fn run_wrapped_explain(
             container: "in-tx",
         })
     } else {
+        // Release the tx_slot lock before blocking on pool.acquire() to
+        // avoid serializing all connection users behind explain calls.
         drop(slot_guard);
         let mut conn = active
             .pool
@@ -84,10 +86,10 @@ pub async fn run_wrapped_explain(
         let pid: i32 = sqlx::query_scalar("SELECT pg_backend_pid()")
             .fetch_one(&mut *conn)
             .await
-            .unwrap_or(-1);
+            .map_err(|e| TuskError::Explain(format!("backend pid lookup failed: {e}")))?;
 
         let (plan_value, container) = if matches!(mode, ExplainExecMode::AnalyzeAnyway) {
-            run_explain_with_rollback(&mut conn, wrapped_sql).await?
+            run_explain_with_rollback(conn, wrapped_sql).await?
         } else {
             let row: (JsonValue,) = sqlx::query_as(wrapped_sql)
                 .fetch_one(&mut *conn)
@@ -106,18 +108,23 @@ pub async fn run_wrapped_explain(
 }
 
 async fn run_explain_with_rollback(
-    conn: &mut sqlx::pool::PoolConnection<sqlx::Postgres>,
+    mut conn: sqlx::pool::PoolConnection<sqlx::Postgres>,
     wrapped_sql: &str,
 ) -> TuskResult<(JsonValue, &'static str)> {
     sqlx::query("BEGIN")
-        .fetch_all(&mut **conn)
+        .execute(&mut *conn)
         .await
         .map_err(|e| TuskError::Explain(format!("BEGIN failed: {e}")))?;
     let result: Result<(JsonValue,), sqlx::Error> =
-        sqlx::query_as(wrapped_sql).fetch_one(&mut **conn).await;
-    let rb = sqlx::query("ROLLBACK").fetch_all(&mut **conn).await;
+        sqlx::query_as(wrapped_sql).fetch_one(&mut *conn).await;
+    let rb = sqlx::query("ROLLBACK").execute(&mut *conn).await;
     let plan = result.map_err(|e| TuskError::Explain(e.to_string()))?;
-    rb.map_err(|e| TuskError::Explain(format!("ROLLBACK failed: {e}")))?;
+    if let Err(e) = rb {
+        // Rollback failed: connection may still be inside an aborted tx.
+        // Detach so it does NOT go back to the pool.
+        let _ = conn.detach();
+        return Err(TuskError::Explain(format!("ROLLBACK failed: {e}")));
+    }
     Ok((extract_first(plan.0)?, "rolled-back"))
 }
 
@@ -194,6 +201,18 @@ mod tests {
         );
         assert_eq!(
             category_to_exec_mode(ExplainCategory::Unparseable, true),
+            None
+        );
+        assert_eq!(
+            category_to_exec_mode(ExplainCategory::DdlPlanOnly, false),
+            Some(ExplainExecMode::PlanOnly)
+        );
+        assert_eq!(
+            category_to_exec_mode(ExplainCategory::DdlPlanOnly, true),
+            Some(ExplainExecMode::AnalyzeAnyway)
+        );
+        assert_eq!(
+            category_to_exec_mode(ExplainCategory::NotExplainable, true),
             None
         );
     }
