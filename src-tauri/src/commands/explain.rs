@@ -29,6 +29,9 @@ pub struct ExplainResult {
     pub plan_json: JsonValue,
     pub warnings: Vec<String>,
     pub verified_candidates: Vec<JsonValue>,
+    /// Wall-clock time of the EXPLAIN call as measured inside `run_wrapped_explain`.
+    /// This excludes command dispatch, SQL classification, and history-write overhead;
+    /// the history entry's `duration_ms` captures the full command duration.
     pub total_ms: f64,
     pub executed_at: i64,
 }
@@ -48,6 +51,8 @@ pub async fn run_explain(
 
     let active = registry.handle(&connection_id)?;
     let started = Instant::now();
+    // Capture start time before execution so history `started_at` is the true start.
+    let started_ms = chrono::Utc::now().timestamp_millis();
 
     let category = classify_for_explain(&sql);
     let exec_mode = category_to_exec_mode(category, allow_analyze_anyway).ok_or_else(|| {
@@ -71,28 +76,46 @@ pub async fn run_explain(
     }
 
     let wrapped = wrap_for_explain(&sql, exec_mode);
-    let output = run_wrapped_explain(&active, &wrapped, exec_mode).await?;
 
+    // Emit started before execution. pid is -1 because the connection (and its
+    // backend PID) isn't acquired until run_wrapped_explain runs. Cancel-during-EXPLAIN
+    // is not a v1 feature, so the placeholder is safe.
     let _ = app_handle.emit(
         "query:started",
         serde_json::json!({
             "connId": connection_id,
-            "pid": output.pid,
-            "startedAt": chrono::Utc::now().timestamp_millis(),
-        }),
-    );
-    let _ = app_handle.emit(
-        "query:completed",
-        serde_json::json!({
-            "connId": connection_id,
-            "pid": output.pid,
-            "ok": true,
+            "pid": -1_i32,
+            "startedAt": started_ms,
         }),
     );
 
+    let output = match run_wrapped_explain(&active, &wrapped, exec_mode).await {
+        Ok(out) => {
+            let _ = app_handle.emit(
+                "query:completed",
+                serde_json::json!({
+                    "connId": connection_id,
+                    "pid": out.pid,
+                    "ok": true,
+                }),
+            );
+            out
+        }
+        Err(e) => {
+            let _ = app_handle.emit(
+                "query:completed",
+                serde_json::json!({
+                    "connId": connection_id,
+                    "pid": -1_i32,
+                    "ok": false,
+                }),
+            );
+            return Err(e);
+        }
+    };
+
     let entry_id = uuid::Uuid::new_v4().to_string();
     let preview: String = wrapped.chars().take(200).collect();
-    let now_ms = chrono::Utc::now().timestamp_millis();
     let duration_ms = started.elapsed().as_millis() as i64;
     if let Err(e) = store.insert_history_entry(&HistoryEntry {
         id: entry_id,
@@ -101,7 +124,7 @@ pub async fn run_explain(
         tx_id: None,
         sql_preview: preview,
         sql_full: Some(wrapped.clone()),
-        started_at: now_ms,
+        started_at: started_ms,
         duration_ms,
         row_count: None,
         status: "ok".into(),
@@ -116,6 +139,7 @@ pub async fn run_explain(
         (ExplainExecMode::PlanOnly, _) => match category {
             ExplainCategory::DmlPlanOnly => "dml-plan-only",
             ExplainCategory::DdlPlanOnly => "ddl-plan-only",
+            // category_to_exec_mode only yields PlanOnly for DML/DDL; this is defensive.
             _ => "dml-plan-only",
         },
         (ExplainExecMode::AnalyzeAnyway, "rolled-back") => "analyze-anyway-rolled-back",
@@ -130,6 +154,6 @@ pub async fn run_explain(
         warnings,
         verified_candidates: Vec::new(),
         total_ms: output.total_ms,
-        executed_at: now_ms,
+        executed_at: started_ms,
     })
 }

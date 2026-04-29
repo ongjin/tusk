@@ -28,5 +28,8 @@ fn classify_basic() {
         category_to_exec_mode(classify_for_explain("SELECT 1"), false),
         Some(ExplainExecMode::SelectAnalyze)
     );
-    let _ = ExplainCategory::SelectAnalyze; // touch the import so the use isn't unused
+    assert!(matches!(
+        classify_for_explain("BEGIN"),
+        ExplainCategory::NotExplainable
+    ));
 }
