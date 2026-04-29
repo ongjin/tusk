@@ -5,12 +5,14 @@ import { toast } from "sonner";
 import type { Cell, ResultMeta } from "@/lib/types";
 import { toLiteral } from "@/lib/pgLiterals";
 import { pkValuesOf, usePendingChanges } from "@/store/pendingChanges";
+import { useVectorActions } from "@/store/useVectorActions";
 
 interface Props {
   cell: Cell;
   columnIndex: number;
   row: Cell[];
   meta: ResultMeta;
+  connId: string;
   x: number;
   y: number;
   onClose: () => void;
@@ -22,6 +24,7 @@ export function CellContextMenu({
   columnIndex,
   row,
   meta,
+  connId,
   x,
   y,
   onClose,
@@ -113,6 +116,25 @@ export function CellContextMenu({
           className="hover:bg-muted block w-full px-3 py-1 text-left"
         >
           Set NULL
+        </button>
+      )}
+      {cell.kind === "Vector" && meta.pkColumns.length > 0 && meta.table && (
+        <button
+          type="button"
+          onClick={() => {
+            useVectorActions.getState().openFindSimilar?.({
+              connId,
+              schema: meta.table!.schema,
+              table: meta.table!.name,
+              vecCol: colName,
+              pkCols: meta.pkColumns,
+              queryVector: cell.value.values,
+            });
+            onClose();
+          }}
+          className="hover:bg-muted block w-full px-3 py-1 text-left"
+        >
+          Find similar rows
         </button>
       )}
       <button

@@ -1,6 +1,12 @@
+import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 
 import type { Cell } from "@/lib/types";
+import {
+  formatVectorSummary,
+  l2Norm,
+  renderSparkline,
+} from "@/lib/vector/cellRender";
 
 function b64ToHex(b64: string): string {
   try {
@@ -58,7 +64,7 @@ export function renderCell(cell: Cell): ReactNode {
     case "Enum":
       return cell.value.value;
     case "Vector":
-      return `vector(${cell.value.dim})`;
+      return <VectorCell vec={cell.value.values} />;
     case "Unknown":
       return (
         <span className="text-muted-foreground italic">
@@ -66,4 +72,20 @@ export function renderCell(cell: Cell): ReactNode {
         </span>
       );
   }
+}
+
+function VectorCell({ vec }: { vec: number[] }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (ref.current) renderSparkline(ref.current, vec);
+  }, [vec]);
+  return (
+    <span
+      className="inline-flex items-center gap-1 font-mono text-xs"
+      title={`dim=${vec.length}, ‖v‖=${l2Norm(vec).toFixed(4)}`}
+    >
+      <canvas ref={ref} width={48} height={12} className="text-blue-500" />
+      <span className="text-muted-foreground">{formatVectorSummary(vec)}</span>
+    </span>
+  );
 }

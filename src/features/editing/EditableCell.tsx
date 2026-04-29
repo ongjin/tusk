@@ -3,7 +3,16 @@ import { useState } from "react";
 import { renderCell } from "@/features/results/cells";
 import type { Cell, ResultMeta } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { formatVectorSummary } from "@/lib/vector/cellRender";
 import { pkValuesOf, usePendingChanges } from "@/store/pendingChanges";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import { cellAsString } from "./cellSerde";
 import { BigintWidget } from "./widgets/Bigint";
@@ -107,6 +116,9 @@ export function EditableCell({
   const colTypeName = meta.columnTypes[columnIndex]?.typeName;
   const isReadonlyType = colTypeName === "vector" || colTypeName === "unknown";
   if (!meta.editable || isReadonlyType) {
+    if (colTypeName === "vector" && value.kind === "Vector") {
+      return <VectorRawCell value={value.value.values} dim={value.value.dim} />;
+    }
     return <>{renderCell(value)}</>;
   }
 
@@ -184,5 +196,43 @@ export function EditableCell({
     >
       {renderCell(display)}
     </span>
+  );
+}
+
+function VectorRawCell({ value, dim }: { value: number[]; dim: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <span
+        onDoubleClick={() => setOpen(true)}
+        className="block w-full cursor-text"
+      >
+        {renderCell({ kind: "Vector", value: { dim, values: value } })}
+      </span>
+      {open && (
+        <Dialog open onOpenChange={(o) => !o && setOpen(false)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Vector value</DialogTitle>
+            </DialogHeader>
+            <div className="text-muted-foreground text-xs">
+              {formatVectorSummary(value)}
+            </div>
+            <pre className="bg-muted max-h-[60vh] overflow-auto rounded p-2 text-[10px]">
+              [{value.join(", ")}]
+            </pre>
+            <DialogFooter>
+              <Button
+                onClick={() =>
+                  navigator.clipboard.writeText(`[${value.join(",")}]`)
+                }
+              >
+                Copy
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }

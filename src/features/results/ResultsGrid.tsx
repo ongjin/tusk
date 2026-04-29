@@ -237,6 +237,7 @@ export function ResultsGrid({
           columnIndex={menu.columnIndex}
           row={menu.row}
           meta={result.meta}
+          connId={connId}
           x={menu.x}
           y={menu.y}
           onClose={() => setMenu(null)}
