@@ -17,6 +17,11 @@ import type {
   ExplainMode,
 } from "@/lib/explain/planTypes";
 import { parsePlan } from "@/lib/explain/planParse";
+import type {
+  SampledVectors,
+  VectorColumn,
+  VectorIndex,
+} from "@/lib/vector/types";
 
 interface RawRunExplainResult {
   mode: ExplainMode;
@@ -121,5 +126,106 @@ export async function runExplain(args: {
     verifiedCandidates: raw.verifiedCandidates,
     totalMs: raw.totalMs,
     executedAt: raw.executedAt,
+  };
+}
+
+export function listVectorColumns(connectionId: string) {
+  return invoke<RawVectorColumn[]>("list_vector_columns", {
+    connectionId,
+  }).then((rows) => rows.map(normalizeVectorColumn));
+}
+
+export function listVectorIndexes(
+  connectionId: string,
+  schema: string,
+  table: string,
+) {
+  return invoke<RawVectorIndex[]>("list_vector_indexes", {
+    connectionId,
+    schema,
+    table,
+  }).then((rows) => rows.map(normalizeVectorIndex));
+}
+
+export function sampleVectors(args: {
+  connectionId: string;
+  schema: string;
+  table: string;
+  vecCol: string;
+  pkCols: string[];
+  limit: number;
+}): Promise<SampledVectors> {
+  return invoke<RawSampledVectors>("sample_vectors", {
+    connectionId: args.connectionId,
+    schema: args.schema,
+    table: args.table,
+    vecCol: args.vecCol,
+    pkCols: args.pkCols,
+    limit: args.limit,
+  }).then(normalizeSampledVectors);
+}
+
+interface RawVectorColumn {
+  schema: string;
+  table: string;
+  column: string;
+  dim: number;
+  has_index: boolean;
+}
+interface RawVectorIndexParams {
+  m: number | null;
+  ef_construction: number | null;
+  lists: number | null;
+  ops: string | null;
+}
+interface RawVectorIndex {
+  name: string;
+  schema: string;
+  table: string;
+  column: string;
+  method: string;
+  params: RawVectorIndexParams;
+  size_bytes: number;
+  definition: string;
+}
+interface RawSampledVectorRow {
+  pk_json: Record<string, unknown>;
+  vec: number[];
+}
+interface RawSampledVectors {
+  rows: RawSampledVectorRow[];
+  total_rows: number;
+}
+
+function normalizeVectorColumn(r: RawVectorColumn): VectorColumn {
+  return {
+    schema: r.schema,
+    table: r.table,
+    column: r.column,
+    dim: r.dim,
+    hasIndex: r.has_index,
+  };
+}
+function normalizeVectorIndex(r: RawVectorIndex): VectorIndex {
+  return {
+    name: r.name,
+    schema: r.schema,
+    table: r.table,
+    column: r.column,
+    method: r.method === "ivfflat" ? "ivfflat" : "hnsw",
+    params: {
+      m: r.params.m ?? undefined,
+      efConstruction: r.params.ef_construction ?? undefined,
+      lists: r.params.lists ?? undefined,
+      ops: r.params.ops ?? undefined,
+    },
+    sizeBytes: r.size_bytes,
+    definition: r.definition,
+  };
+}
+function normalizeSampledVectors(r: RawSampledVectors): SampledVectors {
+  return {
+    rows: r.rows.map((x) => ({ pkJson: x.pk_json, vec: x.vec })),
+    totalRows: r.total_rows,
   };
 }
