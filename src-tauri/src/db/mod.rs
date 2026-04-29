@@ -9,3 +9,4 @@ pub mod pg_literals;
 pub mod pg_meta;
 pub mod pg_stats;
 pub mod schema_embed;
+pub mod vector_introspect;
