@@ -53,6 +53,11 @@ function App() {
     return () => setOpenFindSimilar(null);
   }, [setOpenFindSimilar]);
   useEffect(() => {
+    const set = useVectorActions.getState().setOpenUmap;
+    set((args) => useTabs.getState().newUmapTab(args));
+    return () => set(null);
+  }, []);
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
       if (isMod && e.code === "KeyP" && !e.shiftKey) {

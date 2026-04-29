@@ -19,6 +19,7 @@ import { runGate } from "@/lib/ai/runGate";
 import { invoke } from "@tauri-apps/api/core";
 
 import { CmdKPalette, type ApplyMeta } from "@/features/ai/CmdKPalette";
+import { UmapTab } from "@/features/vector/UmapTab";
 import { EditorTabs } from "./EditorTabs";
 import { isModifier, platformModifier } from "./keymap";
 
@@ -184,6 +185,10 @@ export function EditorPane() {
     },
     [activeTab.id, activeTab.sql, connectionForTab, updateSql],
   );
+
+  if (activeTab.umap) {
+    return <UmapTab tabId={activeTab.id} />;
+  }
 
   return (
     <div className="flex flex-1 flex-col">

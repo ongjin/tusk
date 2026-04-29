@@ -3,6 +3,23 @@ import { create } from "zustand";
 import type { ExplainResult, AiInterpretation } from "@/lib/explain/planTypes";
 import type { QueryResult } from "@/lib/types";
 
+export interface UmapTabState {
+  connId: string;
+  schema: string;
+  table: string;
+  vecCol: string;
+  pkCols: string[];
+  dim: number;
+  sample: number;
+  nNeighbors: number;
+  minDist: number;
+  status: "idle" | "loading-pk" | "sampling" | "computing" | "ready" | "error";
+  progress: number;
+  error?: string;
+  points?: { x: number; y: number; pkJson: Record<string, unknown> }[];
+  selectedIdx?: number;
+}
+
 export interface PlanState {
   result: ExplainResult;
   selectedNodePath: number[];
@@ -22,6 +39,7 @@ export interface Tab {
   busy?: boolean;
   lastPlan?: PlanState;
   resultMode: "rows" | "plan";
+  umap?: UmapTabState;
 }
 
 interface TabsState {
@@ -42,6 +60,15 @@ interface TabsState {
   setActiveAiKey: (id: string, key: string | null) => void;
   cacheAi: (id: string, key: string, interpretation: AiInterpretation) => void;
   setResultMode: (id: string, mode: "rows" | "plan") => void;
+  newUmapTab: (init: {
+    connId: string;
+    schema: string;
+    table: string;
+    vecCol: string;
+    pkCols: string[];
+    dim: number;
+  }) => string;
+  patchUmap: (id: string, patch: Partial<UmapTabState>) => void;
 }
 
 let counter = 1;
@@ -216,6 +243,47 @@ export const useTabs = create<TabsState>((set) => ({
   setResultMode(id, mode) {
     set((s) => ({
       tabs: s.tabs.map((t) => (t.id === id ? { ...t, resultMode: mode } : t)),
+    }));
+  },
+
+  newUmapTab(init) {
+    const id = crypto.randomUUID();
+    const umap: UmapTabState = {
+      connId: init.connId,
+      schema: init.schema,
+      table: init.table,
+      vecCol: init.vecCol,
+      pkCols: init.pkCols,
+      dim: init.dim,
+      sample: 10000,
+      nNeighbors: 15,
+      minDist: 0.1,
+      status: init.pkCols.length === 0 ? "loading-pk" : "sampling",
+      progress: 0,
+    };
+    set((s) => ({
+      tabs: [
+        ...s.tabs,
+        {
+          id,
+          title: `UMAP · ${init.schema}.${init.table}.${init.vecCol}`,
+          connectionId: init.connId,
+          sql: "",
+          dirty: false,
+          resultMode: "rows",
+          umap,
+        },
+      ],
+      activeId: id,
+    }));
+    return id;
+  },
+
+  patchUmap(id, patch) {
+    set((s) => ({
+      tabs: s.tabs.map((t) =>
+        t.id === id && t.umap ? { ...t, umap: { ...t.umap, ...patch } } : t,
+      ),
     }));
   },
 }));
