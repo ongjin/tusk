@@ -10,6 +10,22 @@ import type {
   TuskErrorPayload,
 } from "./types";
 import { TuskError } from "./types";
+import type {
+  ExplainResult,
+  IndexCandidate,
+  RawExplainPlan,
+  ExplainMode,
+} from "@/lib/explain/planTypes";
+import { parsePlan } from "@/lib/explain/planParse";
+
+interface RawRunExplainResult {
+  mode: ExplainMode;
+  planJson: RawExplainPlan;
+  warnings: string[];
+  verifiedCandidates: IndexCandidate[];
+  totalMs: number | null;
+  executedAt: number;
+}
 
 // Wire format: { kind: string, data?: unknown }. Struct variants
 // (Conflict, UnsupportedEditType) carry typed objects in `data`.
@@ -83,4 +99,27 @@ export async function listColumns(
   table: string,
 ) {
   return invoke<ColumnInfo[]>("list_columns", { connectionId, schema, table });
+}
+
+export async function runExplain(args: {
+  connectionId: string;
+  sql: string;
+  allowAnalyzeAnyway?: boolean;
+}): Promise<ExplainResult> {
+  const raw = await invoke<RawRunExplainResult>("run_explain", {
+    args: {
+      connectionId: args.connectionId,
+      sql: args.sql,
+      allowAnalyzeAnyway: args.allowAnalyzeAnyway ?? false,
+    },
+  });
+  return {
+    mode: raw.mode,
+    planJson: raw.planJson,
+    plan: parsePlan(raw.planJson),
+    warnings: raw.warnings,
+    verifiedCandidates: raw.verifiedCandidates,
+    totalMs: raw.totalMs,
+    executedAt: raw.executedAt,
+  };
 }
