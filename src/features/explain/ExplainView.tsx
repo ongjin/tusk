@@ -1,6 +1,7 @@
 import type { ExplainResult, PlanNode } from "@/lib/explain/planTypes";
 import { useTabs } from "@/store/tabs";
 
+import { AnalyzeAnywayButton } from "./AnalyzeAnywayButton";
 import { IndexCandidates } from "./IndexCandidates";
 import { PlanAiStrip } from "./PlanAiStrip";
 import { PlanNodeDetail } from "./PlanNodeDetail";
@@ -34,6 +35,25 @@ export function ExplainView({ tabId, connId, sql, result }: Props) {
         {result.warnings.length > 0 && (
           <span className="text-amber-600" title={result.warnings.join("\n")}>
             ⚠ {result.warnings.length} warning(s)
+          </span>
+        )}
+        {(result.mode === "dml-plan-only" ||
+          result.mode === "ddl-plan-only") && (
+          <>
+            <span className="rounded bg-yellow-500/20 px-2 py-0.5 text-yellow-700">
+              Estimated only — would modify data
+            </span>
+            <AnalyzeAnywayButton tabId={tabId} connId={connId} sql={sql} />
+          </>
+        )}
+        {result.mode === "analyze-anyway-rolled-back" && (
+          <span className="rounded bg-green-500/20 px-2 py-0.5">
+            ANALYZE (rolled back)
+          </span>
+        )}
+        {result.mode === "analyze-anyway-in-tx" && (
+          <span className="rounded bg-amber-500/20 px-2 py-0.5">
+            ANALYZE (in active tx)
           </span>
         )}
       </header>
