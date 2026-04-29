@@ -3291,6 +3291,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pgvector"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc58e2d255979a31caa7cabfa7aac654af0354220719ab7a68520ae7a91e8c0b"
+dependencies = [
+ "sqlx",
+]
+
+[[package]]
 name = "phf"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5896,6 +5905,7 @@ dependencies = [
  "keyring",
  "lru",
  "nix",
+ "pgvector",
  "reqwest 0.12.28",
  "rusqlite",
  "serde",

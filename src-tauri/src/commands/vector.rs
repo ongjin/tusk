@@ -50,7 +50,7 @@ use tauri::State;
 
 use crate::db::pool::ConnectionRegistry;
 use crate::db::vector_introspect::SQL_LIST_VECTOR_COLUMNS;
-use crate::db::vector_introspect::{parse_reloptions, SQL_LIST_VECTOR_INDEXES};
+use crate::db::vector_introspect::{build_sample_vectors_sql, parse_reloptions, SQL_LIST_VECTOR_INDEXES};
 use crate::errors::{TuskError, TuskResult};
 
 #[tauri::command]
@@ -134,6 +134,122 @@ pub async fn list_vector_indexes(
         });
     }
     Ok(out)
+}
+
+#[tauri::command]
+pub async fn sample_vectors(
+    registry: State<'_, ConnectionRegistry>,
+    connection_id: String,
+    schema: String,
+    table: String,
+    vec_col: String,
+    pk_cols: Vec<String>,
+    limit: u32,
+) -> TuskResult<SampledVectors> {
+    if pk_cols.is_empty() {
+        return Err(TuskError::Query(
+            "sample_vectors requires at least one PK column".into(),
+        ));
+    }
+    let pool = registry.pool(&connection_id)?;
+
+    let mut tx = pool
+        .begin()
+        .await
+        .map_err(|e| TuskError::Query(e.to_string()))?;
+    sqlx::query("SET LOCAL statement_timeout = '30s'")
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| TuskError::Query(e.to_string()))?;
+
+    let sql = build_sample_vectors_sql(&schema, &table, &vec_col, &pk_cols);
+    let limit_i64 = limit as i64;
+    let rows = sqlx::query(&sql)
+        .bind(limit_i64)
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(|e| TuskError::Query(e.to_string()))?;
+
+    let total_rows: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(reltuples::bigint, 0) FROM pg_class
+         JOIN pg_namespace n ON n.oid = relnamespace
+         WHERE n.nspname = $1 AND relname = $2",
+    )
+    .bind(&schema)
+    .bind(&table)
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(|e| TuskError::Query(e.to_string()))?;
+
+    tx.commit()
+        .await
+        .map_err(|e| TuskError::Query(e.to_string()))?;
+
+    let mut out_rows = Vec::with_capacity(rows.len());
+    for r in rows {
+        let mut pk_obj = serde_json::Map::new();
+        for (i, key) in pk_cols.iter().enumerate() {
+            let v: serde_json::Value = pg_value_to_json(&r, i)?;
+            pk_obj.insert(key.clone(), v);
+        }
+        let vec: pgvector::Vector = r
+            .try_get(pk_cols.len())
+            .map_err(|e| TuskError::Query(e.to_string()))?;
+        out_rows.push(SampledVectorRow {
+            pk_json: serde_json::Value::Object(pk_obj),
+            vec: vec.to_vec(),
+        });
+    }
+    Ok(SampledVectors {
+        rows: out_rows,
+        total_rows,
+    })
+}
+
+/// Best-effort conversion of an arbitrary Postgres column to JSON.
+/// Used only for PK columns, which are typically int / bigint / uuid / text.
+fn pg_value_to_json(row: &sqlx::postgres::PgRow, idx: usize) -> TuskResult<serde_json::Value> {
+    use sqlx::postgres::PgValueRef;
+    use sqlx::TypeInfo;
+    use sqlx::ValueRef;
+
+    let raw: PgValueRef = row
+        .try_get_raw(idx)
+        .map_err(|e| TuskError::Query(e.to_string()))?;
+    if raw.is_null() {
+        return Ok(serde_json::Value::Null);
+    }
+    let type_name = raw.type_info().name().to_string();
+    match type_name.as_str() {
+        "INT2" => row
+            .try_get::<i16, _>(idx)
+            .map(|v| serde_json::Value::from(v as i64))
+            .map_err(|e| TuskError::Query(e.to_string())),
+        "INT4" => row
+            .try_get::<i32, _>(idx)
+            .map(|v| serde_json::Value::from(v as i64))
+            .map_err(|e| TuskError::Query(e.to_string())),
+        "INT8" => row
+            .try_get::<i64, _>(idx)
+            .map(serde_json::Value::from)
+            .map_err(|e| TuskError::Query(e.to_string())),
+        "BOOL" => row
+            .try_get::<bool, _>(idx)
+            .map(serde_json::Value::from)
+            .map_err(|e| TuskError::Query(e.to_string())),
+        "FLOAT4" => row
+            .try_get::<f32, _>(idx)
+            .map(|v| serde_json::Value::from(v as f64))
+            .map_err(|e| TuskError::Query(e.to_string())),
+        "FLOAT8" => row
+            .try_get::<f64, _>(idx)
+            .map(serde_json::Value::from)
+            .map_err(|e| TuskError::Query(e.to_string())),
+        _ => row
+            .try_get::<String, _>(idx)
+            .map(serde_json::Value::from)
+            .map_err(|e| TuskError::Query(e.to_string())),
+    }
 }
 
 #[cfg(test)]
