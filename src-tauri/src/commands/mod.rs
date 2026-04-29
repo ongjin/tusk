@@ -4,6 +4,7 @@ pub mod cancel;
 pub mod connections;
 pub mod destructive;
 pub mod editing;
+pub mod explain;
 pub mod export;
 pub mod fk_lookup;
 pub mod history;
