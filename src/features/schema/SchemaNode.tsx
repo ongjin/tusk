@@ -9,6 +9,7 @@ interface Props {
   onExpand?: () => void;
   initiallyOpen?: boolean;
   indent?: number;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 export function SchemaNode({
@@ -17,6 +18,7 @@ export function SchemaNode({
   onExpand,
   initiallyOpen,
   indent = 0,
+  onContextMenu,
 }: Props) {
   const [open, setOpen] = useState(!!initiallyOpen);
 
@@ -36,6 +38,7 @@ export function SchemaNode({
         )}
         style={{ paddingLeft: 4 + indent * 12 }}
         onClick={toggle}
+        onContextMenu={onContextMenu}
       >
         {open ? (
           <ChevronDown className="size-3.5" />

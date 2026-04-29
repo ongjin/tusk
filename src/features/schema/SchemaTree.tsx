@@ -1,8 +1,9 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useConnections } from "@/store/connections";
 import { useSchema } from "@/store/schema";
+import { useVectorActions } from "@/store/useVectorActions";
 import { useVectorMeta } from "@/store/useVectorMeta";
 
 import { SchemaNode } from "./SchemaNode";
@@ -98,6 +99,24 @@ function SchemaBranch({
   );
 }
 
+type ColumnMenuState = {
+  x: number;
+  y: number;
+  connId: string;
+  schema: string;
+  table: string;
+  column: string;
+  dim: number;
+};
+
+type TableMenuState = {
+  x: number;
+  y: number;
+  connId: string;
+  schema: string;
+  table: string;
+};
+
 function TableBranch({
   connectionId,
   schema,
@@ -113,57 +132,131 @@ function TableBranch({
   const cols = useSchema((s) => s.columns[key]);
   const loadColumns = useSchema((s) => s.loadColumns);
   const hasVectorAt = useVectorMeta((s) => s.hasVectorAt);
+  const tableHasVector = useVectorMeta((s) => s.tableHasVector);
+
+  const [columnMenu, setColumnMenu] = useState<ColumnMenuState | null>(null);
+  const [tableMenu, setTableMenu] = useState<TableMenuState | null>(null);
 
   const onExpand = useCallback(() => {
     loadColumns(connectionId, schema, table);
   }, [loadColumns, connectionId, schema, table]);
 
   return (
-    <SchemaNode label={table} indent={indent} onExpand={onExpand}>
-      {cols?.state === "loading" && <Hint indent={indent + 1}>loading…</Hint>}
-      {cols?.state === "error" && <Hint indent={indent + 1}>{cols.error}</Hint>}
-      {cols?.state === "ready" &&
-        cols.data!.map((c) => (
-          <div
-            key={c.name}
-            className="text-muted-foreground flex justify-between text-xs"
-            style={{ paddingLeft: 4 + (indent + 1) * 12, paddingRight: 8 }}
-          >
-            <span className="flex items-center">
-              <span>{c.name}</span>
-              {(() => {
+    <>
+      <SchemaNode
+        label={table}
+        indent={indent}
+        onExpand={onExpand}
+        onContextMenu={(e) => {
+          if (!tableHasVector(connectionId, schema, table)) return;
+          e.preventDefault();
+          setTableMenu({ x: e.clientX, y: e.clientY, connId: connectionId, schema, table });
+        }}
+      >
+        {cols?.state === "loading" && <Hint indent={indent + 1}>loading…</Hint>}
+        {cols?.state === "error" && <Hint indent={indent + 1}>{cols.error}</Hint>}
+        {cols?.state === "ready" &&
+          cols.data!.map((c) => (
+            <div
+              key={c.name}
+              className="text-muted-foreground flex justify-between text-xs"
+              style={{ paddingLeft: 4 + (indent + 1) * 12, paddingRight: 8 }}
+              onContextMenu={(e) => {
                 const v = hasVectorAt(connectionId, schema, table, c.name);
-                if (!v) return null;
-                return (
-                  <>
-                    <span
-                      className="text-muted-foreground ml-2 rounded bg-blue-500/10 px-1 text-[10px]"
-                      title={`vector(${v.dim})`}
-                    >
-                      vec({v.dim})
-                    </span>
-                    {!v.hasIndex && (
+                if (!v) return; // let default browser menu happen
+                e.preventDefault();
+                setColumnMenu({
+                  x: e.clientX,
+                  y: e.clientY,
+                  connId: connectionId,
+                  schema,
+                  table,
+                  column: c.name,
+                  dim: v.dim,
+                });
+              }}
+            >
+              <span className="flex items-center">
+                <span>{c.name}</span>
+                {(() => {
+                  const v = hasVectorAt(connectionId, schema, table, c.name);
+                  if (!v) return null;
+                  return (
+                    <>
                       <span
-                        className="ml-1 text-amber-600"
-                        title="No HNSW/IVFFlat index — sequential scan only"
+                        className="text-muted-foreground ml-2 rounded bg-blue-500/10 px-1 text-[10px]"
+                        title={`vector(${v.dim})`}
                       >
-                        ⚠
+                        vec({v.dim})
                       </span>
-                    )}
-                  </>
-                );
-              })()}
-            </span>
-            <span>
-              {c.data_type}
-              {!c.is_nullable && " ·"}
-              {!c.is_nullable && (
-                <span className="text-foreground"> NOT NULL</span>
-              )}
-            </span>
-          </div>
-        ))}
-    </SchemaNode>
+                      {!v.hasIndex && (
+                        <span
+                          className="ml-1 text-amber-600"
+                          title="No HNSW/IVFFlat index — sequential scan only"
+                        >
+                          ⚠
+                        </span>
+                      )}
+                    </>
+                  );
+                })()}
+              </span>
+              <span>
+                {c.data_type}
+                {!c.is_nullable && " ·"}
+                {!c.is_nullable && (
+                  <span className="text-foreground"> NOT NULL</span>
+                )}
+              </span>
+            </div>
+          ))}
+      </SchemaNode>
+      {columnMenu && (
+        <VectorContextMenu
+          x={columnMenu.x}
+          y={columnMenu.y}
+          onClose={() => setColumnMenu(null)}
+          items={[
+            {
+              label: "Visualize (UMAP)",
+              onSelect: () => {
+                const open = useVectorActions.getState().openUmap;
+                if (open)
+                  open({
+                    connId: columnMenu.connId,
+                    schema: columnMenu.schema,
+                    table: columnMenu.table,
+                    vecCol: columnMenu.column,
+                    pkCols: [], // pkCols resolved by UmapTab if empty
+                    dim: columnMenu.dim,
+                  });
+              },
+            },
+          ]}
+        />
+      )}
+      {tableMenu && (
+        <VectorContextMenu
+          x={tableMenu.x}
+          y={tableMenu.y}
+          onClose={() => setTableMenu(null)}
+          items={[
+            {
+              label: "Vector indexes",
+              onSelect: () => {
+                const open = useVectorActions.getState().openIndexPanel;
+                if (open)
+                  open({
+                    connId: tableMenu.connId,
+                    schema: tableMenu.schema,
+                    table: tableMenu.table,
+                  });
+              },
+            },
+          ]}
+        />
+      )}
+    </>
   );
 }
 
@@ -181,5 +274,56 @@ function Hint({
     >
       {children}
     </p>
+  );
+}
+
+function VectorContextMenu({
+  x,
+  y,
+  items,
+  onClose,
+}: {
+  x: number;
+  y: number;
+  items: { label: string; onSelect: () => void }[];
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      style={{ left: x, top: y }}
+      className="bg-card fixed z-50 min-w-[10rem] rounded-sm border text-xs shadow-md"
+    >
+      {items.map((item) => (
+        <button
+          key={item.label}
+          type="button"
+          onClick={() => {
+            item.onSelect();
+            onClose();
+          }}
+          className="hover:bg-muted block w-full px-3 py-1 text-left text-xs"
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
   );
 }
