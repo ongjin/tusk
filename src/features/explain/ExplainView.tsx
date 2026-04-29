@@ -1,6 +1,7 @@
 import type { ExplainResult, PlanNode } from "@/lib/explain/planTypes";
 import { useTabs } from "@/store/tabs";
 
+import { IndexCandidates } from "./IndexCandidates";
 import { PlanNodeDetail } from "./PlanNodeDetail";
 import { PlanTree } from "./PlanTree";
 
@@ -49,6 +50,17 @@ export function ExplainView({ tabId, result }: Props) {
           />
         </div>
       </div>
+      <IndexCandidates
+        candidates={result.verifiedCandidates}
+        onInsert={(sql) => {
+          const t = useTabs.getState();
+          const tab = t.tabs.find((x) => x.id === tabId);
+          if (!tab) return;
+          const next =
+            tab.sql + (tab.sql.endsWith("\n") ? "" : "\n") + sql + "\n";
+          t.updateSql(tabId, next);
+        }}
+      />
     </div>
   );
 }
