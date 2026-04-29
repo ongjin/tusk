@@ -109,7 +109,14 @@ pub async fn list_vector_indexes(
         let definition: String = r
             .try_get("definition")
             .map_err(|e| TuskError::Query(e.to_string()))?;
-        let params = parse_reloptions(&reloptions, &definition);
+        let opcname: Option<String> = r
+            .try_get("opcname")
+            .map_err(|e| TuskError::Query(e.to_string()))?;
+        let mut params = parse_reloptions(&reloptions, &definition);
+        // prefer the catalog-sourced opclass name over the parsed definition
+        if params.ops.is_none() {
+            params.ops = opcname;
+        }
         out.push(VectorIndex {
             name: r
                 .try_get("name")

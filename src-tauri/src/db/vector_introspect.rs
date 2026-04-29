@@ -36,13 +36,15 @@ SELECT i.relname           AS name,
        am.amname           AS method,
        COALESCE(i.reloptions, ARRAY[]::text[]) AS reloptions,
        pg_relation_size(i.oid) AS size_bytes,
-       pg_get_indexdef(i.oid) AS definition
+       pg_get_indexdef(i.oid) AS definition,
+       oc.opcname             AS opcname
 FROM pg_index ix
 JOIN pg_class i    ON i.oid = ix.indexrelid
 JOIN pg_class t    ON t.oid = ix.indrelid
 JOIN pg_namespace n ON n.oid = t.relnamespace
 JOIN pg_am am      ON am.oid = i.relam
 JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ix.indkey[0]
+LEFT JOIN pg_opclass oc ON oc.oid = ix.indclass[0]
 WHERE n.nspname = $1
   AND t.relname = $2
   AND am.amname IN ('hnsw','ivfflat')
