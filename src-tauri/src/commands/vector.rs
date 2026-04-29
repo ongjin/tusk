@@ -50,6 +50,7 @@ use tauri::State;
 
 use crate::db::pool::ConnectionRegistry;
 use crate::db::vector_introspect::SQL_LIST_VECTOR_COLUMNS;
+use crate::db::vector_introspect::{parse_reloptions, SQL_LIST_VECTOR_INDEXES};
 use crate::errors::{TuskError, TuskResult};
 
 #[tauri::command]
@@ -81,6 +82,55 @@ pub async fn list_vector_columns(
             has_index: r
                 .try_get("has_index")
                 .map_err(|e| TuskError::Query(e.to_string()))?,
+        });
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+pub async fn list_vector_indexes(
+    registry: State<'_, ConnectionRegistry>,
+    connection_id: String,
+    schema: String,
+    table: String,
+) -> TuskResult<Vec<VectorIndex>> {
+    let pool = registry.pool(&connection_id)?;
+    let rows = sqlx::query(SQL_LIST_VECTOR_INDEXES)
+        .bind(&schema)
+        .bind(&table)
+        .fetch_all(&pool)
+        .await
+        .map_err(|e| TuskError::Query(e.to_string()))?;
+    let mut out = Vec::with_capacity(rows.len());
+    for r in rows {
+        let reloptions: Vec<String> = r
+            .try_get::<Vec<String>, _>("reloptions")
+            .map_err(|e| TuskError::Query(e.to_string()))?;
+        let definition: String = r
+            .try_get("definition")
+            .map_err(|e| TuskError::Query(e.to_string()))?;
+        let params = parse_reloptions(&reloptions, &definition);
+        out.push(VectorIndex {
+            name: r
+                .try_get("name")
+                .map_err(|e| TuskError::Query(e.to_string()))?,
+            schema: r
+                .try_get("schema")
+                .map_err(|e| TuskError::Query(e.to_string()))?,
+            table: r
+                .try_get::<String, _>("table_name")
+                .map_err(|e| TuskError::Query(e.to_string()))?,
+            column: r
+                .try_get("column")
+                .map_err(|e| TuskError::Query(e.to_string()))?,
+            method: r
+                .try_get("method")
+                .map_err(|e| TuskError::Query(e.to_string()))?,
+            params,
+            size_bytes: r
+                .try_get("size_bytes")
+                .map_err(|e| TuskError::Query(e.to_string()))?,
+            definition,
         });
     }
     Ok(out)
