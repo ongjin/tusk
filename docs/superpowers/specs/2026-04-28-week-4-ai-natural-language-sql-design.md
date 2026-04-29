@@ -95,16 +95,16 @@ LLM generation 호출은 **프론트에서 직접** (Vercel AI SDK 스트리밍 
 
 ## 4. Libraries (Week 4 추가)
 
-| 영역                   | 라이브러리                                          | 사유                                                                                                      |
-| ---------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| AI SDK (frontend)      | `ai` 6.x + `@ai-sdk/openai` + `@ai-sdk/anthropic`   | 이미 설치. streamText, generateText, tool calling 통합 인터페이스.                                        |
-| Gemini provider        | `@ai-sdk/google` (Vercel AI SDK)                    | NEW dep. AI SDK 6와 호환되는 공식 패키지.                                                                 |
-| Ollama provider        | `ollama-ai-provider-v2` (또는 동등 AI SDK 어댑터)   | NEW dep. AI SDK 6 호환. localhost endpoint 설정.                                                          |
-| Monaco diff            | `@monaco-editor/react` 기존 + `DiffEditor` import   | 추가 dep 없음. 동일 패키지에 Diff 컴포넌트 포함.                                                          |
-| Rust HTTP (embeddings) | `reqwest` 0.12 (rustls)                             | NEW dep. OpenAI/Gemini/Ollama embeddings REST. Anthropic은 임베딩 모델 없음 → fallback 안내.              |
-| Rust JSON streams      | `tokio::sync::mpsc` 기존 + `tauri::Emitter` 기존    | 임베딩 진행률 emit. 추가 dep 없음.                                                                        |
-| Cosine similarity      | 직접 작성 (`f32` SIMD optional)                     | 100~1000 벡터 × 1536 dim = 1.5M f32 곱 → 단일 코어 < 5ms. SIMD 불필요.                                    |
-| Hash for DDL checksum  | stdlib `std::hash::DefaultHasher`                    | 추가 dep 없음. checksum은 동등성만 보장하면 충분 — 충돌 저항성 불필요. 결과는 hex 문자열로 직렬화. |
+| 영역                   | 라이브러리                                        | 사유                                                                                               |
+| ---------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| AI SDK (frontend)      | `ai` 6.x + `@ai-sdk/openai` + `@ai-sdk/anthropic` | 이미 설치. streamText, generateText, tool calling 통합 인터페이스.                                 |
+| Gemini provider        | `@ai-sdk/google` (Vercel AI SDK)                  | NEW dep. AI SDK 6와 호환되는 공식 패키지.                                                          |
+| Ollama provider        | `ollama-ai-provider-v2` (또는 동등 AI SDK 어댑터) | NEW dep. AI SDK 6 호환. localhost endpoint 설정.                                                   |
+| Monaco diff            | `@monaco-editor/react` 기존 + `DiffEditor` import | 추가 dep 없음. 동일 패키지에 Diff 컴포넌트 포함.                                                   |
+| Rust HTTP (embeddings) | `reqwest` 0.12 (rustls)                           | NEW dep. OpenAI/Gemini/Ollama embeddings REST. Anthropic은 임베딩 모델 없음 → fallback 안내.       |
+| Rust JSON streams      | `tokio::sync::mpsc` 기존 + `tauri::Emitter` 기존  | 임베딩 진행률 emit. 추가 dep 없음.                                                                 |
+| Cosine similarity      | 직접 작성 (`f32` SIMD optional)                   | 100~1000 벡터 × 1536 dim = 1.5M f32 곱 → 단일 코어 < 5ms. SIMD 불필요.                             |
+| Hash for DDL checksum  | stdlib `std::hash::DefaultHasher`                 | 추가 dep 없음. checksum은 동등성만 보장하면 충분 — 충돌 저항성 불필요. 결과는 hex 문자열로 직렬화. |
 
 ## 5. Data model
 
@@ -115,20 +115,20 @@ export type AiProvider = "openai" | "anthropic" | "gemini" | "ollama";
 
 export interface ProviderConfig {
   provider: AiProvider;
-  apiKeyPresent: boolean;        // never the key itself — UI flag only
-  baseUrl?: string;              // ollama: "http://localhost:11434", custom OAI-compat URL
-  generationModel: string;       // "gpt-4o-mini" | "claude-haiku-4-5" | "gemini-2.5-flash" | "llama3.1:8b" | ...
-  embeddingModel?: string;       // "text-embedding-3-small" | "text-embedding-004" | "nomic-embed-text" | null
+  apiKeyPresent: boolean; // never the key itself — UI flag only
+  baseUrl?: string; // ollama: "http://localhost:11434", custom OAI-compat URL
+  generationModel: string; // "gpt-4o-mini" | "claude-haiku-4-5" | "gemini-2.5-flash" | "llama3.1:8b" | ...
+  embeddingModel?: string; // "text-embedding-3-small" | "text-embedding-004" | "nomic-embed-text" | null
 }
 
 export interface AiSettings {
   enabledProviders: AiProvider[];
   defaultGenerationProvider: AiProvider;
-  defaultEmbeddingProvider: AiProvider;     // anthropic 단독은 불가 — UI에서 막기
-  toolsEnabled: { sampleRows: boolean };    // 다른 도구는 항상 ON
-  destructiveStrict: boolean;               // true면 키워드 타이핑 confirm 강제
-  ragTopK: number;                          // default 8
-  schemaIndexAutoSync: boolean;             // default true
+  defaultEmbeddingProvider: AiProvider; // anthropic 단독은 불가 — UI에서 막기
+  toolsEnabled: { sampleRows: boolean }; // 다른 도구는 항상 ON
+  destructiveStrict: boolean; // true면 키워드 타이핑 confirm 강제
+  ragTopK: number; // default 8
+  schemaIndexAutoSync: boolean; // default true
 }
 
 export type DestructiveKind =
@@ -149,7 +149,7 @@ export type DestructiveKind =
 export interface DestructiveFinding {
   kind: DestructiveKind;
   statementIndex: number;
-  message: string;        // "DELETE without WHERE will remove all rows from public.users"
+  message: string; // "DELETE without WHERE will remove all rows from public.users"
   affectedObject?: string; // "public.users"
 }
 
@@ -158,9 +158,9 @@ export interface AiHistoryMeta {
   provider: AiProvider;
   generationModel: string;
   embeddingModel?: string;
-  prompt: string;            // user's NL input
+  prompt: string; // user's NL input
   generatedSql: string;
-  topKTables: string[];      // schema-qualified
+  topKTables: string[]; // schema-qualified
   toolCalls: { name: string; args: unknown }[];
   promptTokens?: number;
   completionTokens?: number;
@@ -278,12 +278,12 @@ CREATE TABLE ai_history (
 
 ### 5.4 OS keychain layout (provider 키)
 
-| Service | Account                | 값                       |
-| ------- | ---------------------- | ------------------------ |
-| `tusk`  | `ai:openai`            | OpenAI API key           |
-| `tusk`  | `ai:anthropic`         | Anthropic API key        |
-| `tusk`  | `ai:gemini`            | Google AI Studio key     |
-| `tusk`  | `ai:ollama`            | (선택) Ollama auth header — 보통 비어있음. baseUrl만 settings에. |
+| Service | Account        | 값                                                               |
+| ------- | -------------- | ---------------------------------------------------------------- |
+| `tusk`  | `ai:openai`    | OpenAI API key                                                   |
+| `tusk`  | `ai:anthropic` | Anthropic API key                                                |
+| `tusk`  | `ai:gemini`    | Google AI Studio key                                             |
+| `tusk`  | `ai:ollama`    | (선택) Ollama auth header — 보통 비어있음. baseUrl만 settings에. |
 
 기존 connection 비밀번호 entry (`conn:<id>`)와 namespace 충돌 없음. `secrets.rs`에 `ai_entry(provider)` helper 추가.
 
@@ -629,21 +629,21 @@ pub enum TuskError {
 
 ## 10. Risks
 
-| #   | 위험                                              | 영향                          | 완화                                                                                                                                |
-| --- | ------------------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | LLM이 잘못된 destructive SQL 생성 (DROP TABLE)    | 사용자 데이터 영구 손실       | Apply / Run 두 경로 모두 Rust AST 게이트. AI prompt에도 "destructive는 명시 동의 필요" 박음. Strict 모드에서 키워드 타이핑.         |
-| 2   | sqlparser-rs가 PG 방언 못 파싱 (예: COPY ... PROGRAM) | destructive 게이트 우회       | 파서 실패 = 항상 confirm 강제 (DestructiveParserFailed 전용 모달 메시지). 절대 그냥 통과 X.                                          |
-| 3   | 임베딩 호출 비용 폭주 (큰 스키마 매 connect)      | $$ 청구                       | (conn_id, schema, table, ddl_checksum, model) 매칭 시 SKIP. Auto-sync OFF 토글 제공. 매 sync 진행률 emit + Cancel 가능.             |
-| 4   | API key가 frontend memory에 남음                  | 프로세스 dump 시 누출         | 매 호출 직전 invoke로 fetch, 변수 즉시 drop. frontend는 apiKeyPresent boolean만 영속화. zustand persist에 키 절대 안 들어감.        |
-| 5   | top-K가 잘못된 테이블만 골라 LLM 헛소리           | 잘못된 SQL → 신뢰 손상        | 사용자 prompt의 단순 토큰 매칭으로 schema/table 명 추출 → forced_includes에 강제 포함. tool calling으로 LLM이 추가 fetch 가능.      |
-| 6   | history_entry status enum이 'generated' 같은 새 값 필요 | 마이그레이션 vs 기존 enum     | v1엔 'ok'로 기록 + ai_history.generated_sql 존재 여부로 generation-only 식별. 새 status 도입은 v1.5 (마이그레이션 마찰 회피).        |
-| 7   | Ollama localhost 미기동                           | sync 다 fail / generation 실패 | Test 버튼이 baseUrl에 GET / 또는 /api/tags 1회. 실패 시 분명한 에러 메시지 + retry. background sync은 첫 fail 후 abort.             |
-| 8   | Vercel AI SDK 6.x breaking changes                | 컴파일 안 됨                  | AI SDK 6는 안정 stable 채널. 단, provider 패키지 호환 버전 lock. `@ai-sdk/openai ^3`, `@ai-sdk/anthropic ^3`, Gemini/Ollama 패키지는 6 호환 버전 명시. |
-| 9   | DDL 빌더가 PG 17 신기능 누락 (예: virtual generated col) | RAG 컨텍스트 빈약             | information_schema + pg_catalog로 핵심(컬럼/타입/PK/FK/COMMENT)만 신뢰. 모르는 건 무시. spec 변경 안전. v1.5 강화.                 |
-| 10  | sample_rows tool로 PII 누출                       | privacy / GDPR 우려            | Default OFF. Settings에 항상 표시 + 토글. 활성화 시 설명: "rows go to the LLM provider, no redaction".                              |
-| 11  | 임베딩 provider 다양성 (모델별 dim 다름)          | 모델 바꾸면 인덱스 무효       | schema_embedding.embedding_model + embedding_dim 컬럼 보유. 매칭 안 되면 단순 SKIP/재embed. 자동.                                  |
-| 12  | streamText 도중 사용자가 Cmd+K 다시 눌러 race     | 두 스트림 동시 진행 / UI 깨짐 | CmdKPalette는 단일 인스턴스. 새 호출은 이전 AbortController.abort() 먼저.                                                          |
-| 13  | 사용자가 strict mode에서 매번 키워드 타이핑하기 귀찮 | 사용성 떨어짐 → 기본 OFF       | Default Standard. Strict는 opt-in. 모달 첫 진입 시 1회 안내.                                                                          |
+| #   | 위험                                                     | 영향                           | 완화                                                                                                                                                   |
+| --- | -------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | LLM이 잘못된 destructive SQL 생성 (DROP TABLE)           | 사용자 데이터 영구 손실        | Apply / Run 두 경로 모두 Rust AST 게이트. AI prompt에도 "destructive는 명시 동의 필요" 박음. Strict 모드에서 키워드 타이핑.                            |
+| 2   | sqlparser-rs가 PG 방언 못 파싱 (예: COPY ... PROGRAM)    | destructive 게이트 우회        | 파서 실패 = 항상 confirm 강제 (DestructiveParserFailed 전용 모달 메시지). 절대 그냥 통과 X.                                                            |
+| 3   | 임베딩 호출 비용 폭주 (큰 스키마 매 connect)             | $$ 청구                        | (conn_id, schema, table, ddl_checksum, model) 매칭 시 SKIP. Auto-sync OFF 토글 제공. 매 sync 진행률 emit + Cancel 가능.                                |
+| 4   | API key가 frontend memory에 남음                         | 프로세스 dump 시 누출          | 매 호출 직전 invoke로 fetch, 변수 즉시 drop. frontend는 apiKeyPresent boolean만 영속화. zustand persist에 키 절대 안 들어감.                           |
+| 5   | top-K가 잘못된 테이블만 골라 LLM 헛소리                  | 잘못된 SQL → 신뢰 손상         | 사용자 prompt의 단순 토큰 매칭으로 schema/table 명 추출 → forced_includes에 강제 포함. tool calling으로 LLM이 추가 fetch 가능.                         |
+| 6   | history_entry status enum이 'generated' 같은 새 값 필요  | 마이그레이션 vs 기존 enum      | v1엔 'ok'로 기록 + ai_history.generated_sql 존재 여부로 generation-only 식별. 새 status 도입은 v1.5 (마이그레이션 마찰 회피).                          |
+| 7   | Ollama localhost 미기동                                  | sync 다 fail / generation 실패 | Test 버튼이 baseUrl에 GET / 또는 /api/tags 1회. 실패 시 분명한 에러 메시지 + retry. background sync은 첫 fail 후 abort.                                |
+| 8   | Vercel AI SDK 6.x breaking changes                       | 컴파일 안 됨                   | AI SDK 6는 안정 stable 채널. 단, provider 패키지 호환 버전 lock. `@ai-sdk/openai ^3`, `@ai-sdk/anthropic ^3`, Gemini/Ollama 패키지는 6 호환 버전 명시. |
+| 9   | DDL 빌더가 PG 17 신기능 누락 (예: virtual generated col) | RAG 컨텍스트 빈약              | information_schema + pg_catalog로 핵심(컬럼/타입/PK/FK/COMMENT)만 신뢰. 모르는 건 무시. spec 변경 안전. v1.5 강화.                                     |
+| 10  | sample_rows tool로 PII 누출                              | privacy / GDPR 우려            | Default OFF. Settings에 항상 표시 + 토글. 활성화 시 설명: "rows go to the LLM provider, no redaction".                                                 |
+| 11  | 임베딩 provider 다양성 (모델별 dim 다름)                 | 모델 바꾸면 인덱스 무효        | schema_embedding.embedding_model + embedding_dim 컬럼 보유. 매칭 안 되면 단순 SKIP/재embed. 자동.                                                      |
+| 12  | streamText 도중 사용자가 Cmd+K 다시 눌러 race            | 두 스트림 동시 진행 / UI 깨짐  | CmdKPalette는 단일 인스턴스. 새 호출은 이전 AbortController.abort() 먼저.                                                                              |
+| 13  | 사용자가 strict mode에서 매번 키워드 타이핑하기 귀찮     | 사용성 떨어짐 → 기본 OFF       | Default Standard. Strict는 opt-in. 모달 첫 진입 시 1회 안내.                                                                                           |
 
 ## 11. Testing strategy
 

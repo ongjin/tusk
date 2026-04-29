@@ -7,6 +7,7 @@
 **Architecture:** Frontend는 `features/explain/*`에 새 모듈 군 + `Cmd+Shift+E`/Explain 버튼을 `EditorPane`에 추가. `Tab.lastPlan`이 `Tab.lastResult`와 sticky하게 공존하고 `[Rows | Plan]` 토글로 왕복. Rust는 `commands/explain.rs`(run_explain) + `db/explain_runner.rs`(EXPLAIN 실행) + `db/pg_stats.rs`(카디널리티 조회) + 신규 migration 004로 `ai_explain` 테이블 추가. ANALYZE-anyway 경로만 `runGate`(Week 4 destructive) 통과 + 비-tx 환경에선 `BEGIN ... ROLLBACK` 래핑.
 
 **Tech Stack:**
+
 - 신규 의존성: **없음**. 기존 `sqlx 0.8`, `serde_json`, `sqlparser 0.52`, `rusqlite 0.32`, AI SDK 6.x, Web Crypto `subtle.digest` 만 사용.
 - Plan 트리는 들여쓰기 텍스트 + div width%로 self-time bar — d3/react-flow 의도적으로 회피.
 
@@ -150,6 +151,7 @@ Expected: 1 row JSON output containing `Plan`, `Planning Time`, `Execution Time`
 **Goal:** Cross-cutting `TuskError::Explain` so later tasks can reference it without circular imports.
 
 **Files:**
+
 - Modify: `src-tauri/src/errors.rs`
 
 **Steps:**
@@ -185,6 +187,7 @@ git commit -m "chore(week5): add TuskError::Explain variant"
 **Goal:** Decide ANALYZE vs plan-only mode for an arbitrary SQL string. Pure function, no DB access.
 
 **Files:**
+
 - Modify: `src-tauri/src/commands/sqlast.rs`
 
 **Steps:**
@@ -375,6 +378,7 @@ git commit -m "feat(week5): classify_for_explain in commands/sqlast"
 **Goal:** Module that takes a connection + classified SQL + flags and returns parsed JSON plan. No history side effects, no candidates yet.
 
 **Files:**
+
 - Create: `src-tauri/src/db/explain_runner.rs`
 - Modify: `src-tauri/src/db/mod.rs`
 
@@ -623,6 +627,7 @@ git commit -m "feat(week5): db::explain_runner — wrap_for_explain + run_wrappe
 **Goal:** Tauri command that ties classification + execution + history together. Returns `ExplainResult` with empty `verifiedCandidates` (filled in T6).
 
 **Files:**
+
 - Create: `src-tauri/src/commands/explain.rs`
 - Modify: `src-tauri/src/commands/mod.rs`
 - Modify: `src-tauri/src/lib.rs`
@@ -861,6 +866,7 @@ git commit -m "feat(week5): commands::explain::run_explain (no candidates yet)"
 **Goal:** Read `pg_stats.n_distinct` / `null_frac` for a set of (schema, table, column) triples in one round trip.
 
 **Files:**
+
 - Create: `src-tauri/src/db/pg_stats.rs`
 - Modify: `src-tauri/src/db/mod.rs`
 
@@ -1014,6 +1020,7 @@ git commit -m "feat(week5): db::pg_stats — fetch_column_stats"
 **Goal:** Walk plan JSON, score each Seq-Scan-with-Filter candidate via pg_stats, and return verified list inside ExplainResult.
 
 **Files:**
+
 - Modify: `src-tauri/src/commands/explain.rs`
 
 **Steps:**
@@ -1359,6 +1366,7 @@ git commit -m "feat(week5): extract_index_candidates with pg_stats verdict"
 **Goal:** Persist AI-explain interpretations alongside Week 4's `ai_history`.
 
 **Files:**
+
 - Modify: `src-tauri/src/db/state.rs`
 - Modify: `src-tauri/src/commands/history.rs`
 - Modify: `src-tauri/src/lib.rs`
@@ -1555,6 +1563,7 @@ git commit -m "feat(week5): migration 004_ai_explain + record_ai_explain"
 **Goal:** Confirm a DELETE EXPLAIN ANALYZE leaves the table untouched, even when the EXPLAIN errors mid-call.
 
 **Files:**
+
 - Modify: `src-tauri/tests/explain_smoke.rs`
 
 **Steps:**
@@ -1663,6 +1672,7 @@ git commit -m "test(week5): verify ANALYZE-anyway BEGIN/ROLLBACK leaves table in
 **Goal:** Pure TS modules with no React dependencies — the trunk for everything else.
 
 **Files:**
+
 - Create: `src/lib/explain/planTypes.ts`
 - Create: `src/lib/explain/planParse.ts`
 - Create: `src/lib/explain/planSha.ts`
@@ -1906,7 +1916,9 @@ const MAX_DEPTH = 100;
 export function parsePlan(raw: RawExplainPlan): PlanNode {
   const root = raw.Plan;
   const rootTotalMs =
-    typeof root["Actual Total Time"] === "number" ? root["Actual Total Time"] : null;
+    typeof root["Actual Total Time"] === "number"
+      ? root["Actual Total Time"]
+      : null;
   const rootTotalCost = root["Total Cost"] || 1;
   return walk(root, rootTotalMs, rootTotalCost, 0);
 }
@@ -1941,15 +1953,22 @@ function walk(
     walk(c, rootTotalMs, rootTotalCost, depth + 1),
   );
   const childTotalMs = children.reduce(
-    (a, c) => (a !== null && c.actualTotalTime !== null ? a + c.actualTotalTime : null),
+    (a, c) =>
+      a !== null && c.actualTotalTime !== null ? a + c.actualTotalTime : null,
     children.length === 0 ? 0 : null,
   );
   const total =
-    typeof raw["Actual Total Time"] === "number" ? raw["Actual Total Time"] : null;
+    typeof raw["Actual Total Time"] === "number"
+      ? raw["Actual Total Time"]
+      : null;
   const selfMs =
-    total !== null && childTotalMs !== null ? Math.max(0, total - childTotalMs) : null;
+    total !== null && childTotalMs !== null
+      ? Math.max(0, total - childTotalMs)
+      : null;
   const selfTimeRatio =
-    selfMs !== null && rootTotalMs && rootTotalMs > 0 ? selfMs / rootTotalMs : null;
+    selfMs !== null && rootTotalMs && rootTotalMs > 0
+      ? selfMs / rootTotalMs
+      : null;
 
   const childTotalCost = children.reduce((a, c) => a + c.totalCost, 0);
   const selfCost = Math.max(0, raw["Total Cost"] - childTotalCost);
@@ -2019,7 +2038,9 @@ import { planSha, stableStringify } from "./planSha";
 
 describe("stableStringify", () => {
   it("produces identical output for objects with different key order", () => {
-    expect(stableStringify({ a: 1, b: 2 })).toBe(stableStringify({ b: 2, a: 1 }));
+    expect(stableStringify({ a: 1, b: 2 })).toBe(
+      stableStringify({ b: 2, a: 1 }),
+    );
   });
 
   it("preserves array order", () => {
@@ -2040,8 +2061,12 @@ describe("planSha", () => {
   });
 
   it("is stable across key re-orderings", async () => {
-    const a = await planSha({ Plan: { "Node Type": "Seq Scan", "Total Cost": 1 } });
-    const b = await planSha({ Plan: { "Total Cost": 1, "Node Type": "Seq Scan" } });
+    const a = await planSha({
+      Plan: { "Node Type": "Seq Scan", "Total Cost": 1 },
+    });
+    const b = await planSha({
+      Plan: { "Total Cost": 1, "Node Type": "Seq Scan" },
+    });
     expect(a).toBe(b);
   });
 });
@@ -2100,6 +2125,7 @@ git commit -m "feat(week5): plan types + parse + stable SHA"
 **Goal:** Make `Tab` carry both Rows and Plan results, plus settings for AI/index toggles.
 
 **Files:**
+
 - Modify: `src/store/tabs.ts`
 - Modify: `src/store/settings.ts`
 
@@ -2281,6 +2307,7 @@ git commit -m "feat(week5): tabs.lastPlan + settings autoInterpret/indexAdvice/t
 **Goal:** Typed wrapper around `invoke('run_explain')` returning a parsed `ExplainResult`, plus a small gate that handles `runGate` for ANALYZE-anyway.
 
 **Files:**
+
 - Modify: `src/lib/tauri.ts`
 - Create: `src/features/explain/explainGate.ts`
 
@@ -2293,7 +2320,12 @@ Edit `src/lib/tauri.ts`. Add:
 ```ts
 import { invoke } from "@tauri-apps/api/core";
 
-import type { ExplainResult, IndexCandidate, RawExplainPlan, ExplainMode } from "@/lib/explain/planTypes";
+import type {
+  ExplainResult,
+  IndexCandidate,
+  RawExplainPlan,
+  ExplainMode,
+} from "@/lib/explain/planTypes";
 import { parsePlan } from "@/lib/explain/planParse";
 
 interface RawRunExplainResult {
@@ -2389,6 +2421,7 @@ git commit -m "feat(week5): runExplain typed wrapper + explainGate"
 **Goal:** Make Plan results renderable. No tree yet — placeholder showing mode + node count.
 
 **Files:**
+
 - Create: `src/features/explain/ExplainView.tsx`
 - Modify: `src/features/results/ResultsHeader.tsx`
 - Modify: `src/features/editor/EditorPane.tsx`
@@ -2408,9 +2441,13 @@ export function ExplainView({ result }: Props) {
   return (
     <div className="flex h-full flex-col">
       <header className="border-border bg-muted/30 flex items-center gap-2 border-b px-3 py-1.5 text-xs">
-        <span className="bg-amber-500/20 rounded px-2 py-0.5">{result.mode}</span>
+        <span className="rounded bg-amber-500/20 px-2 py-0.5">
+          {result.mode}
+        </span>
         {result.totalMs !== null && (
-          <span className="text-muted-foreground">{result.totalMs.toFixed(1)} ms</span>
+          <span className="text-muted-foreground">
+            {result.totalMs.toFixed(1)} ms
+          </span>
         )}
         {result.warnings.length > 0 && (
           <span className="text-amber-600" title={result.warnings.join("\n")}>
@@ -2455,26 +2492,28 @@ interface Props {
 Add the toggle block before `{busy && ...}`:
 
 ```tsx
-{(result || hasPlan) && (
-  <div className="border-input flex overflow-hidden rounded-sm border text-[11px]">
-    <button
-      type="button"
-      onClick={() => onModeChange?.("rows")}
-      className={`px-2 py-0.5 ${resultMode === "rows" ? "bg-accent text-accent-foreground" : ""}`}
-      disabled={!result}
-    >
-      Rows
-    </button>
-    <button
-      type="button"
-      onClick={() => onModeChange?.("plan")}
-      className={`px-2 py-0.5 ${resultMode === "plan" ? "bg-accent text-accent-foreground" : ""}`}
-      disabled={!hasPlan}
-    >
-      Plan
-    </button>
-  </div>
-)}
+{
+  (result || hasPlan) && (
+    <div className="border-input flex overflow-hidden rounded-sm border text-[11px]">
+      <button
+        type="button"
+        onClick={() => onModeChange?.("rows")}
+        className={`px-2 py-0.5 ${resultMode === "rows" ? "bg-accent text-accent-foreground" : ""}`}
+        disabled={!result}
+      >
+        Rows
+      </button>
+      <button
+        type="button"
+        onClick={() => onModeChange?.("plan")}
+        className={`px-2 py-0.5 ${resultMode === "plan" ? "bg-accent text-accent-foreground" : ""}`}
+        disabled={!hasPlan}
+      >
+        Plan
+      </button>
+    </div>
+  );
+}
 ```
 
 - [ ] **Step 3: Wire `ExplainView` and the toggle into `EditorPane`**
@@ -2488,25 +2527,27 @@ import { ExplainView } from "@/features/explain/ExplainView";
 Replace the result-area block with:
 
 ```tsx
-        <div className="flex max-h-[45vh] min-h-[120px] flex-col">
-          <ResultsHeader
-            result={activeTab.lastResult}
-            error={activeTab.lastError}
-            busy={activeTab.busy}
-            connId={connectionForTab}
-            hasPlan={!!activeTab.lastPlan}
-            resultMode={activeTab.resultMode}
-            onModeChange={(mode) => useTabs.getState().setResultMode(activeTab.id, mode)}
-          />
-          {activeTab.resultMode === "plan" && activeTab.lastPlan ? (
-            <ExplainView result={activeTab.lastPlan.result} />
-          ) : (
-            activeTab.lastResult &&
-            connectionForTab && (
-              <ResultsGrid result={activeTab.lastResult} connId={connectionForTab} />
-            )
-          )}
-        </div>
+<div className="flex max-h-[45vh] min-h-[120px] flex-col">
+  <ResultsHeader
+    result={activeTab.lastResult}
+    error={activeTab.lastError}
+    busy={activeTab.busy}
+    connId={connectionForTab}
+    hasPlan={!!activeTab.lastPlan}
+    resultMode={activeTab.resultMode}
+    onModeChange={(mode) =>
+      useTabs.getState().setResultMode(activeTab.id, mode)
+    }
+  />
+  {activeTab.resultMode === "plan" && activeTab.lastPlan ? (
+    <ExplainView result={activeTab.lastPlan.result} />
+  ) : (
+    activeTab.lastResult &&
+    connectionForTab && (
+      <ResultsGrid result={activeTab.lastResult} connId={connectionForTab} />
+    )
+  )}
+</div>
 ```
 
 - [ ] **Step 4: Typecheck + lint**
@@ -2529,6 +2570,7 @@ git commit -m "feat(week5): ExplainView stub + Rows/Plan toggle"
 **Goal:** Indented tree + self-time bar + keyboard navigation.
 
 **Files:**
+
 - Create: `src/features/explain/PlanTree.tsx`
 - Create: `src/features/explain/PlanTree.test.tsx`
 - Modify: `src/features/explain/ExplainView.tsx`
@@ -2626,7 +2668,7 @@ function Row({
     >
       <span
         aria-hidden
-        className="bg-amber-500/30 absolute inset-y-0 left-0"
+        className="absolute inset-y-0 left-0 bg-amber-500/30"
         style={{ width: `${widthPct}%` }}
       />
       <span className="relative flex-1" style={{ paddingLeft: row.depth * 14 }}>
@@ -2634,17 +2676,20 @@ function Row({
         <span className="font-medium">{row.node.nodeType}</span>
         {row.node.relationName && (
           <span className="text-muted-foreground">
-            {" "}· {row.node.schema ?? "public"}.{row.node.relationName}
+            {" "}
+            · {row.node.schema ?? "public"}.{row.node.relationName}
           </span>
         )}
         {!planOnly && row.node.selfMs !== null && (
           <span className="text-muted-foreground">
-            {" "}· {row.node.selfMs.toFixed(1)} ms
+            {" "}
+            · {row.node.selfMs.toFixed(1)} ms
           </span>
         )}
         <span className="text-muted-foreground">
           {" · "}
-          {row.node.actualRows ?? row.node.planRows} {planOnly ? "est rows" : "rows"}
+          {row.node.actualRows ?? row.node.planRows}{" "}
+          {planOnly ? "est rows" : "rows"}
         </span>
         {heavy && <span className="text-red-500"> ⚠</span>}
       </span>
@@ -2782,9 +2827,13 @@ export function ExplainView({
   return (
     <div className="flex h-full flex-col">
       <header className="border-border bg-muted/30 flex items-center gap-2 border-b px-3 py-1.5 text-xs">
-        <span className="bg-amber-500/20 rounded px-2 py-0.5">{result.mode}</span>
+        <span className="rounded bg-amber-500/20 px-2 py-0.5">
+          {result.mode}
+        </span>
         {result.totalMs !== null && (
-          <span className="text-muted-foreground">{result.totalMs.toFixed(1)} ms</span>
+          <span className="text-muted-foreground">
+            {result.totalMs.toFixed(1)} ms
+          </span>
         )}
         {result.warnings.length > 0 && (
           <span className="text-amber-600" title={result.warnings.join("\n")}>
@@ -2801,7 +2850,7 @@ export function ExplainView({
             planOnly={planOnly}
           />
         </div>
-        <div className="overflow-auto p-3 text-xs text-muted-foreground">
+        <div className="text-muted-foreground overflow-auto p-3 text-xs">
           Node detail — coming up in Task 14.
         </div>
       </div>
@@ -2838,6 +2887,7 @@ git commit -m "feat(week5): PlanTree with self-time bar + keyboard navigation"
 **Goal:** Replace right-side placeholder with full node metrics.
 
 **Files:**
+
 - Create: `src/features/explain/PlanNodeDetail.tsx`
 - Create: `src/features/explain/PlanNodeDetail.test.tsx`
 - Modify: `src/features/explain/ExplainView.tsx`
@@ -2888,7 +2938,9 @@ export function PlanNodeDetail({ node, planOnly }: Props) {
       </h4>
       {row(
         "Relation",
-        node.relationName ? `${node.schema ?? "public"}.${node.relationName}` : null,
+        node.relationName
+          ? `${node.schema ?? "public"}.${node.relationName}`
+          : null,
       )}
       {row("Alias", node.alias)}
       {row("Filter", node.filter)}
@@ -2911,7 +2963,9 @@ export function PlanNodeDetail({ node, planOnly }: Props) {
       {row("Buffers", buffersRow)}
       {row(
         "Output",
-        node.output && node.output.length > 0 ? node.output.slice(0, 8).join(", ") : null,
+        node.output && node.output.length > 0
+          ? node.output.slice(0, 8).join(", ")
+          : null,
       )}
     </div>
   );
@@ -2978,9 +3032,12 @@ import { PlanNodeDetail } from "./PlanNodeDetail";
 Replace the right column placeholder with:
 
 ```tsx
-        <div className="overflow-auto">
-          <PlanNodeDetail node={selectedNode(result.plan, selectedPath)} planOnly={planOnly} />
-        </div>
+<div className="overflow-auto">
+  <PlanNodeDetail
+    node={selectedNode(result.plan, selectedPath)}
+    planOnly={planOnly}
+  />
+</div>
 ```
 
 Helper at the bottom:
@@ -3018,6 +3075,7 @@ git commit -m "feat(week5): PlanNodeDetail panel"
 **Goal:** Render verified candidates with `CREATE INDEX` SQL and "Insert into editor" action.
 
 **Files:**
+
 - Create: `src/features/explain/IndexCandidates.tsx`
 - Modify: `src/features/explain/ExplainView.tsx`
 
@@ -3037,7 +3095,8 @@ export function IndexCandidates({ candidates, onInsert }: Props) {
   if (candidates.length === 0) {
     return (
       <div className="text-muted-foreground p-3 text-xs">
-        No verified index candidates. (No high-selectivity Seq Scan filters detected.)
+        No verified index candidates. (No high-selectivity Seq Scan filters
+        detected.)
       </div>
     );
   }
@@ -3078,7 +3137,7 @@ export function IndexCandidates({ candidates, onInsert }: Props) {
             </div>
             <button
               type="button"
-              className="border-input rounded border px-2 py-0.5 text-[11px] hover:bg-accent"
+              className="border-input hover:bg-accent rounded border px-2 py-0.5 text-[11px]"
               onClick={() => onInsert(sql)}
             >
               Insert into editor
@@ -3107,16 +3166,16 @@ import { IndexCandidates } from "./IndexCandidates";
 Below the grid (still inside the outer flex column):
 
 ```tsx
-      <IndexCandidates
-        candidates={result.verifiedCandidates}
-        onInsert={(sql) => {
-          const t = useTabs.getState();
-          const tab = t.tabs.find((x) => x.id === tabId);
-          if (!tab) return;
-          const next = tab.sql + (tab.sql.endsWith("\n") ? "" : "\n") + sql + "\n";
-          t.updateSql(tabId, next);
-        }}
-      />
+<IndexCandidates
+  candidates={result.verifiedCandidates}
+  onInsert={(sql) => {
+    const t = useTabs.getState();
+    const tab = t.tabs.find((x) => x.id === tabId);
+    if (!tab) return;
+    const next = tab.sql + (tab.sql.endsWith("\n") ? "" : "\n") + sql + "\n";
+    t.updateSql(tabId, next);
+  }}
+/>
 ```
 
 - [ ] **Step 3: Typecheck + lint**
@@ -3139,6 +3198,7 @@ git commit -m "feat(week5): IndexCandidates with Insert-into-editor"
 **Goal:** Build prompts (with relation context + token budget) and call streamText.
 
 **Files:**
+
 - Create: `src/lib/ai/explainPrompts.ts`
 - Create: `src/lib/ai/explainStream.ts`
 - Create: `src/lib/ai/explainPrompts.test.ts`
@@ -3339,7 +3399,9 @@ function relationFull(r: RelationContext): string {
     `-- ${r.schema}.${r.table}`,
     r.ddl,
     "Indexes:",
-    r.indexes.length === 0 ? "  (none)" : r.indexes.map((i) => `  - ${i}`).join("\n"),
+    r.indexes.length === 0
+      ? "  (none)"
+      : r.indexes.map((i) => `  - ${i}`).join("\n"),
     `Stats: rows≈${r.stats.rowEstimate ?? "?"}`,
   ].join("\n");
 }
@@ -3349,7 +3411,9 @@ function relationStatsOnly(r: RelationContext): string {
     `-- ${r.schema}.${r.table}`,
     "(DDL omitted: token budget)",
     "Indexes:",
-    r.indexes.length === 0 ? "  (none)" : r.indexes.map((i) => `  - ${i}`).join("\n"),
+    r.indexes.length === 0
+      ? "  (none)"
+      : r.indexes.map((i) => `  - ${i}`).join("\n"),
     `Stats: rows≈${r.stats.rowEstimate ?? "?"}`,
   ].join("\n");
 }
@@ -3371,20 +3435,25 @@ export function compactPlanText(node: PlanNode, depth = 0): string {
   const filter = node.filter
     ? ` filter=${node.filter}`
     : node.indexCond
-    ? ` cond=${node.indexCond}`
-    : "";
+      ? ` cond=${node.indexCond}`
+      : "";
   const head = `${indent}${node.nodeType}${rel}${ms}${rows}${filter}`;
-  const kids = node.children.map((c) => compactPlanText(c, depth + 1)).join("\n");
+  const kids = node.children
+    .map((c) => compactPlanText(c, depth + 1))
+    .join("\n");
   return kids ? `${head}\n${kids}` : head;
 }
 ```
 
 - [ ] **Step 3: Implement `explainStream.ts`**
 
-```ts
+````ts
 import { streamText, type LanguageModel } from "ai";
 
-import type { AiInterpretation, AiIndexRecommendation } from "@/lib/explain/planTypes";
+import type {
+  AiInterpretation,
+  AiIndexRecommendation,
+} from "@/lib/explain/planTypes";
 
 export interface StreamExplainArgs {
   model: LanguageModel;
@@ -3446,7 +3515,9 @@ function parseRecommendations(json: string): AiIndexRecommendation[] {
         where: typeof x.where === "string" ? x.where : undefined,
         reason: typeof x.reason === "string" ? x.reason : "",
         priority:
-          x.priority === "high" || x.priority === "medium" || x.priority === "low"
+          x.priority === "high" ||
+          x.priority === "medium" ||
+          x.priority === "low"
             ? x.priority
             : "medium",
       }));
@@ -3454,7 +3525,7 @@ function parseRecommendations(json: string): AiIndexRecommendation[] {
     return [];
   }
 }
-```
+````
 
 - [ ] **Step 4: Run tests**
 
@@ -3478,6 +3549,7 @@ git commit -m "feat(week5): explainPrompts + explainStream"
 **Goal:** Bottom strip that calls the LLM on demand (or auto when settings.autoInterpretPlan), caches by plan SHA + model, records to `ai_explain`.
 
 **Files:**
+
 - Create: `src/features/explain/PlanAiStrip.tsx`
 - Modify: `src/features/explain/ExplainView.tsx`
 - Modify: `src/features/editor/EditorPane.tsx`
@@ -3603,13 +3675,17 @@ export function PlanAiStrip({ tabId, connId, result, sql }: Props) {
           durationMs: interp.durationMs,
         },
       }).catch((e) =>
-        toast.error(`Failed to record AI explain: ${e instanceof Error ? e.message : e}`),
+        toast.error(
+          `Failed to record AI explain: ${e instanceof Error ? e.message : e}`,
+        ),
       );
     } catch (e) {
       if (ctrl.signal.aborted) {
         toast("Interpretation cancelled");
       } else {
-        toast.error(`Interpretation failed: ${e instanceof Error ? e.message : e}`);
+        toast.error(
+          `Interpretation failed: ${e instanceof Error ? e.message : e}`,
+        );
       }
     } finally {
       setBusy(false);
@@ -3630,7 +3706,12 @@ export function PlanAiStrip({ tabId, connId, result, sql }: Props) {
           {provider} · {model}
         </span>
         {!cached && (
-          <Button size="sm" disabled={busy} onClick={doInterpret} className="ml-auto">
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={doInterpret}
+            className="ml-auto"
+          >
             {busy ? "Streaming…" : "Interpret with AI"}
           </Button>
         )}
@@ -3647,7 +3728,7 @@ export function PlanAiStrip({ tabId, connId, result, sql }: Props) {
           </Button>
         )}
       </div>
-      <div className="whitespace-pre-wrap leading-relaxed">
+      <div className="leading-relaxed whitespace-pre-wrap">
         {cached?.summary ?? streamed ?? ""}
       </div>
       {cached && cached.recommendations.length > 0 && (
@@ -3729,7 +3810,7 @@ import { PlanAiStrip } from "./PlanAiStrip";
 After `IndexCandidates`, render `PlanAiStrip`:
 
 ```tsx
-      <PlanAiStrip tabId={tabId} connId={connId} result={result} sql={sql} />
+<PlanAiStrip tabId={tabId} connId={connId} result={result} sql={sql} />
 ```
 
 - [ ] **Step 3: Pass connId + sql from `EditorPane`**
@@ -3737,19 +3818,21 @@ After `IndexCandidates`, render `PlanAiStrip`:
 Edit `src/features/editor/EditorPane.tsx`. Replace the Plan branch:
 
 ```tsx
-{activeTab.resultMode === "plan" && activeTab.lastPlan && connectionForTab ? (
-  <ExplainView
-    tabId={activeTab.id}
-    connId={connectionForTab}
-    sql={activeTab.sql}
-    result={activeTab.lastPlan.result}
-  />
-) : (
-  activeTab.lastResult &&
-  connectionForTab && (
-    <ResultsGrid result={activeTab.lastResult} connId={connectionForTab} />
-  )
-)}
+{
+  activeTab.resultMode === "plan" && activeTab.lastPlan && connectionForTab ? (
+    <ExplainView
+      tabId={activeTab.id}
+      connId={connectionForTab}
+      sql={activeTab.sql}
+      result={activeTab.lastPlan.result}
+    />
+  ) : (
+    activeTab.lastResult &&
+    connectionForTab && (
+      <ResultsGrid result={activeTab.lastResult} connId={connectionForTab} />
+    )
+  );
+}
 ```
 
 - [ ] **Step 4: Typecheck + lint**
@@ -3772,6 +3855,7 @@ git commit -m "feat(week5): PlanAiStrip — interpret + cache + record_ai_explai
 **Goal:** Trigger `runExplainGate` and store the plan via `setPlan`.
 
 **Files:**
+
 - Modify: `src/features/editor/EditorPane.tsx`
 
 **Steps:**
@@ -3826,7 +3910,12 @@ Add `runExplainAction` to the `useEffect` dependency array.
 Add a button in the toolbar next to Run:
 
 ```tsx
-<Button size="sm" variant="outline" onClick={() => runExplainAction(false)} disabled={activeTab.busy}>
+<Button
+  size="sm"
+  variant="outline"
+  onClick={() => runExplainAction(false)}
+  disabled={activeTab.busy}
+>
   Explain (⌘⇧E)
 </Button>
 ```
@@ -3845,6 +3934,7 @@ pnpm tauri dev
 ```
 
 Manually:
+
 - Connect to docker DB.
 - Type `SELECT 1;` → press `Cmd+Shift+E` → Plan tab populated.
 - Run regular `SELECT 1;` with `Cmd+Enter` → Rows tab populates and is auto-selected.
@@ -3863,6 +3953,7 @@ git commit -m "feat(week5): EditorPane — Cmd+Shift+E + Explain button"
 **Goal:** When mode is plan-only, expose "ANALYZE anyway" button that re-runs through `runGate` + ANALYZE-anyway path.
 
 **Files:**
+
 - Create: `src/features/explain/AnalyzeAnywayButton.tsx`
 - Modify: `src/features/explain/ExplainView.tsx`
 
@@ -3909,24 +4000,30 @@ import { AnalyzeAnywayButton } from "./AnalyzeAnywayButton";
 Append inside the header `<header>` block (after existing badges):
 
 ```tsx
-{(result.mode === "dml-plan-only" || result.mode === "ddl-plan-only") && (
-  <>
-    <span className="rounded bg-yellow-500/20 px-2 py-0.5 text-yellow-700">
-      Estimated only — would modify data
+{
+  (result.mode === "dml-plan-only" || result.mode === "ddl-plan-only") && (
+    <>
+      <span className="rounded bg-yellow-500/20 px-2 py-0.5 text-yellow-700">
+        Estimated only — would modify data
+      </span>
+      <AnalyzeAnywayButton tabId={tabId} connId={connId} sql={sql} />
+    </>
+  );
+}
+{
+  result.mode === "analyze-anyway-rolled-back" && (
+    <span className="rounded bg-green-500/20 px-2 py-0.5">
+      ANALYZE (rolled back)
     </span>
-    <AnalyzeAnywayButton tabId={tabId} connId={connId} sql={sql} />
-  </>
-)}
-{result.mode === "analyze-anyway-rolled-back" && (
-  <span className="rounded bg-green-500/20 px-2 py-0.5">
-    ANALYZE (rolled back)
-  </span>
-)}
-{result.mode === "analyze-anyway-in-tx" && (
-  <span className="rounded bg-amber-500/20 px-2 py-0.5">
-    ANALYZE (in active tx)
-  </span>
-)}
+  );
+}
+{
+  result.mode === "analyze-anyway-in-tx" && (
+    <span className="rounded bg-amber-500/20 px-2 py-0.5">
+      ANALYZE (in active tx)
+    </span>
+  );
+}
 ```
 
 - [ ] **Step 3: Smoke test**
@@ -3936,6 +4033,7 @@ pnpm tauri dev
 ```
 
 Manually:
+
 1. Create a scratch table: `CREATE TABLE scratch (id int); INSERT INTO scratch VALUES (1),(2);` (Cmd+Enter).
 2. New tab, type `UPDATE scratch SET id = id + 1` → `Cmd+Shift+E` → expect plan-only badge + ANALYZE-anyway button.
 3. Click ANALYZE-anyway → DestructiveModal fires (UPDATE without WHERE) → confirm → result returns with `analyze-anyway-rolled-back` badge + Actual times present.
@@ -3961,6 +4059,7 @@ git commit -m "feat(week5): ANALYZE-anyway button + mode badges"
 **Goal:** Production polish before final manual verification.
 
 **Files:**
+
 - Modify: `src/features/explain/ExplainView.tsx`
 - Modify: `src/lib/explain/planParse.test.ts`
 
@@ -3977,9 +4076,13 @@ const stale = tab?.sql !== tab?.lastPlan?.sqlAtRun;
 In the header, add:
 
 ```tsx
-{stale && (
-  <span className="rounded bg-orange-500/20 px-2 py-0.5">stale (sql edited)</span>
-)}
+{
+  stale && (
+    <span className="rounded bg-orange-500/20 px-2 py-0.5">
+      stale (sql edited)
+    </span>
+  );
+}
 ```
 
 - [ ] **Step 2: Add the depth-limit test**
@@ -4033,6 +4136,7 @@ git commit -m "chore(week5): stale plan badge + depth cutoff test"
 **Goal:** Single document a non-author can run to validate Week 5 end-to-end.
 
 **Files:**
+
 - Create: `docs/superpowers/plans/manual-verification-week-5.md`
 
 **Steps:**
@@ -4045,20 +4149,22 @@ Create `docs/superpowers/plans/manual-verification-week-5.md`:
 # Week 5 — Manual Verification Checklist
 
 ## Setup
+
 - [ ] `pnpm install`
 - [ ] `docker compose -f infra/postgres/docker-compose.yml up -d`
 - [ ] Seed schema:
-  CREATE TABLE w5_users (id serial primary key, email text, country text, signup_at timestamp);
-  INSERT INTO w5_users (email, country, signup_at)
-    SELECT 'u' || g || '@x.com',
-           CASE WHEN g % 100 = 0 THEN 'KR' ELSE 'US' END,
-           now() - (g || ' minutes')::interval
-    FROM generate_series(1, 50000) g;
-  ANALYZE w5_users;
+      CREATE TABLE w5_users (id serial primary key, email text, country text, signup_at timestamp);
+      INSERT INTO w5_users (email, country, signup_at)
+      SELECT 'u' || g || '@x.com',
+      CASE WHEN g % 100 = 0 THEN 'KR' ELSE 'US' END,
+      now() - (g || ' minutes')::interval
+      FROM generate_series(1, 50000) g;
+      ANALYZE w5_users;
 - [ ] `pnpm tauri dev`
 - [ ] Connect to `127.0.0.1:55432 / tusk_test / tusk / tusk`.
 
 ## Run
+
 - [ ] `SELECT * FROM w5_users WHERE email = 'u1@x.com';` → Cmd+Shift+E
   - Plan tab opens, mode badge `select-analyze`, total ms shown.
   - Tree shows Seq Scan on w5_users with self-time bar near 100%.
@@ -4069,6 +4175,7 @@ Create `docs/superpowers/plans/manual-verification-week-5.md`:
 - [ ] Re-run the SELECT EXPLAIN → tree now has Index Scan, no candidates returned.
 
 ## DML
+
 - [ ] `UPDATE w5_users SET country = 'KR' WHERE id = 1;` → Cmd+Shift+E
   - Mode badge: `dml-plan-only` + yellow `Estimated only — would modify data`.
   - "ANALYZE anyway" button visible.
@@ -4078,6 +4185,7 @@ Create `docs/superpowers/plans/manual-verification-week-5.md`:
 - [ ] Click ANALYZE anyway again → confirm → mode `analyze-anyway-rolled-back`. Verify with SELECT that no rows actually changed.
 
 ## AI interpret
+
 - [ ] With a key set in Settings, ensure auto-interpret OFF.
 - [ ] Run a SELECT EXPLAIN → AI strip shows "Interpret with AI" button.
 - [ ] Click → streamed summary populates → recommendations list appears.
@@ -4086,20 +4194,24 @@ Create `docs/superpowers/plans/manual-verification-week-5.md`:
 - [ ] Open `~/Library/Application Support/.../tusk.db` → query `SELECT count(*) FROM ai_explain;` → count increments only on first interpretation per cache key.
 
 ## Errors
+
 - [ ] `BEGIN;` → Cmd+Shift+E → toast "Statement is not explainable".
 - [ ] No connection → click Explain → toast "Select a connected database first".
 - [ ] Missing AI key → click Interpret → toast pointing to Settings.
 
 ## Stale badge
+
 - [ ] After running an EXPLAIN, edit the SQL in the editor → header shows `stale (sql edited)` badge until the next EXPLAIN.
 
 ## Regression
+
 - [ ] Cmd+Enter run still works.
 - [ ] DestructiveModal still fires on `DELETE FROM w5_users;` typed directly.
 - [ ] Cmd+K still works.
 - [ ] Cmd+P history palette includes the EXPLAIN entry under source `editor`.
 
 ## Cleanup
+
 - [ ] `docker compose -f infra/postgres/docker-compose.yml down`.
 ```
 

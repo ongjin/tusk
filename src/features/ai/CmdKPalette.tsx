@@ -154,11 +154,7 @@ export function CmdKPalette({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-40"
-      onClick={onClose}
-      role="presentation"
-    >
+    <div className="fixed inset-0 z-40" onClick={onClose} role="presentation">
       <div
         className="bg-card fixed top-1/4 left-1/2 z-50 w-[640px] -translate-x-1/2 rounded border p-3 shadow"
         onClick={(e) => e.stopPropagation()}
@@ -186,15 +182,19 @@ export function CmdKPalette({
             className="border-input flex-1 rounded border px-2 py-1 text-sm"
             autoFocus
           />
-          <Button size="sm" disabled={busy || prompt.trim().length === 0} onClick={onSubmit}>
+          <Button
+            size="sm"
+            disabled={busy || prompt.trim().length === 0}
+            onClick={onSubmit}
+          >
             {busy ? "Streaming…" : "Generate"}
           </Button>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
           {defaultGen} · {cfg.generationModel} · top-K {ragTopK}
         </p>
-        {streamed && (
-          selection ? (
+        {streamed &&
+          (selection ? (
             <div className="mt-3">
               <SqlDiffView original={selection} modified={streamed} />
             </div>
@@ -202,8 +202,7 @@ export function CmdKPalette({
             <pre className="bg-muted mt-3 max-h-64 overflow-auto rounded p-2 text-xs">
               {streamed}
             </pre>
-          )
-        )}
+          ))}
         {meta && (
           <div className="mt-3 flex justify-end gap-2">
             <Button

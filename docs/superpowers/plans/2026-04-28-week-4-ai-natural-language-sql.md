@@ -7,6 +7,7 @@
 **Architecture:** Generation은 frontend (Vercel AI SDK 6 `streamText` + tool calling), embedding은 Rust(`reqwest` REST → rusqlite BLOB `f32[]` little-endian + 인메모리 cosine). 키는 매 호출마다 keychain fetch + 변수 즉시 drop, frontend엔 `apiKeyPresent: bool`만 영속. Destructive 검출은 `sqlparser` AST 순회로 multi-statement 안에서도 단계별 finding을 모음. 임베딩 인덱스는 `(conn_id, schema, table, ddl_checksum, embedding_model)` 매칭 시 SKIP하고 그 외엔 incremental re-embed.
 
 **Tech Stack:**
+
 - Frontend new deps: `@ai-sdk/google` (Gemini), `ollama-ai-provider-v2` (Ollama AI SDK adapter), `zod` (이미 transitive로 들어와 있을 가능성 — 명시적 추가).
 - Rust new deps: `reqwest 0.12` (rustls features), `bytemuck 1` (f32 ↔ &[u8] cast 안전).
 - Existing: `sqlparser 0.52` (Week 3에서 이미 추가, destructive AST 재사용), `rusqlite 0.32`, `keyring 3`, `sqlx 0.8`.
@@ -158,6 +159,7 @@ git cherry-pick 9202194  # adjust if hash drifted
 **Goal:** All cross-cutting deps and types in place before any feature code.
 
 **Files:**
+
 - Modify: `src-tauri/Cargo.toml`
 - Modify: `src-tauri/src/errors.rs`
 - Modify: `src-tauri/src/secrets.rs`
@@ -393,6 +395,7 @@ git commit -m "feat(week4): foundation — ai_entry keychain, error variants, ai
 **Goal:** `invoke('ai_secret_set'|'ai_secret_get'|'ai_secret_delete'|'ai_secret_list_present')` callable from frontend. Frontend never persists the raw key — only `apiKeyPresent: bool`.
 
 **Files:**
+
 - Create: `src-tauri/src/commands/ai_secrets.rs`
 - Modify: `src-tauri/src/commands/mod.rs`
 - Modify: `src-tauri/src/lib.rs`
@@ -554,6 +557,7 @@ git commit -m "feat(week4): ai_secret_* tauri commands + frontend keychain wrapp
 **Goal:** Frontend state for provider configs, defaults, RAG topK, destructive mode, tools toggle. Persists everything **except** raw keys.
 
 **Files:**
+
 - Create: `src/store/ai.ts`
 - Modify: `src/store/settings.ts`
 
@@ -742,6 +746,7 @@ git commit -m "feat(week4): ai store + settings extension (providers, ragTopK, d
 **Goal:** A modal accessible from the sidebar/menu that hosts tabs (General/Providers/Schema Index/Advanced). Providers tab has 4 cards (one per provider) with API-key input, save, delete. Test button is a stub returning a toast (T6 wires real liveness).
 
 **Files:**
+
 - Create: `src/features/settings/SettingsDialog.tsx`
 - Create: `src/features/settings/ProviderSection.tsx`
 - Modify: `src/App.tsx` (open button + dialog mount)
@@ -774,7 +779,7 @@ export function SettingsDialog({ open, onOpenChange, initialTab }: Props) {
           <DialogPrimitive.Title className="border-border border-b px-4 py-3 text-sm font-medium">
             Settings
           </DialogPrimitive.Title>
-          <div className="flex flex-1 min-h-0">
+          <div className="flex min-h-0 flex-1">
             <nav className="border-border w-44 border-r p-2 text-xs">
               {(
                 [
@@ -827,10 +832,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  aiSecretSet,
-  aiSecretDelete,
-} from "@/lib/keychain";
+import { aiSecretSet, aiSecretDelete } from "@/lib/keychain";
 import type { AiProvider } from "@/lib/types";
 import { useAi } from "@/store/ai";
 import { useSettings } from "@/store/settings";
@@ -872,7 +874,9 @@ export function ProviderSection() {
                 setEnabledProviders([...enabledProviders, meta.id]);
               }
             } else {
-              setEnabledProviders(enabledProviders.filter((p) => p !== meta.id));
+              setEnabledProviders(
+                enabledProviders.filter((p) => p !== meta.id),
+              );
             }
           }}
           onSave={async (key) => {
@@ -891,7 +895,9 @@ export function ProviderSection() {
             try {
               await aiSecretDelete(meta.id);
               setProviderConfig(meta.id, { apiKeyPresent: false });
-              setEnabledProviders(enabledProviders.filter((p) => p !== meta.id));
+              setEnabledProviders(
+                enabledProviders.filter((p) => p !== meta.id),
+              );
               toast.success(`${meta.label} key removed`);
             } catch (e) {
               toast.error(`Failed to delete: ${asMessage(e)}`);
@@ -999,7 +1005,9 @@ interface CardProps {
   onToggle: (v: boolean) => void;
   onSave: (key: string) => Promise<void>;
   onDelete: () => Promise<void>;
-  onConfigChange: (patch: Partial<import("@/lib/types").ProviderConfig>) => void;
+  onConfigChange: (
+    patch: Partial<import("@/lib/types").ProviderConfig>,
+  ) => void;
   onTest: () => void;
 }
 
@@ -1081,7 +1089,9 @@ function ProviderCard(p: CardProps) {
         <span className="w-32">Generation model</span>
         <input
           value={p.config.generationModel}
-          onChange={(e) => p.onConfigChange({ generationModel: e.target.value })}
+          onChange={(e) =>
+            p.onConfigChange({ generationModel: e.target.value })
+          }
           className="border-input flex-1 rounded border px-2 py-1"
         />
       </label>
@@ -1162,6 +1172,7 @@ git commit -m "feat(week4): SettingsDialog + ProviderSection (paste/save/delete 
 **Goal:** A single function `buildModel(provider, modelId, key, baseUrl?)` returns a Vercel AI SDK 6 model instance for any of the 4 providers. Used by Cmd+K (Task 20) and the Test button (Task 6).
 
 **Files:**
+
 - Create: `src/lib/ai/providers.ts`
 - Create: `src/features/settings/ModelPicker.tsx` (used in T20 — included now to avoid forward ref breakage)
 
@@ -1203,7 +1214,9 @@ export function buildModel(args: BuildModelArgs): LanguageModel {
     }
     case "ollama": {
       const ollama = createOllama({
-        baseURL: (args.baseUrl ?? "http://localhost:11434").replace(/\/$/, "") + "/api",
+        baseURL:
+          (args.baseUrl ?? "http://localhost:11434").replace(/\/$/, "") +
+          "/api",
       });
       return ollama(args.modelId);
     }
@@ -1282,6 +1295,7 @@ git commit -m "feat(week4): AI SDK provider factory + ModelPicker"
 **Goal:** Replace the stub in T4 with a real probe — short `generateText` ping that confirms the key + model + (for Ollama) baseUrl actually answer. Surface success/failure in toast.
 
 **Files:**
+
 - Modify: `src/features/settings/ProviderSection.tsx`
 - Create: `src/lib/ai/probe.ts`
 
@@ -1395,6 +1409,7 @@ git commit -m "feat(week4): provider Test button (live probe via generateText)"
 **Goal:** Pure Rust function that takes SQL → `Vec<DestructiveFinding>`. AST-based, deterministic, multi-statement aware. No DB connection required.
 
 **Files:**
+
 - Create: `src-tauri/src/commands/destructive.rs`
 - Modify: `src-tauri/src/commands/mod.rs`
 
@@ -1817,6 +1832,7 @@ git commit -m "feat(week4): destructive statement classifier (AST) + unit tests"
 **Goal:** A Tauri command that returns `Vec<DestructiveFinding>` for an arbitrary SQL string, plus a small frontend regex helper for instant in-typing warning (UX only — never the gate).
 
 **Files:**
+
 - Modify: `src-tauri/src/commands/destructive.rs` (add `#[tauri::command]`)
 - Modify: `src-tauri/src/lib.rs`
 - Create: `src/lib/ai/destructive.ts`
@@ -1864,7 +1880,10 @@ const FAST_PATTERNS: { kind: DestructiveFinding["kind"]; re: RegExp }[] = [
   { kind: "drop-column", re: /\bdrop\s+column\b/i },
   // DELETE / UPDATE without WHERE는 정규식만으로 정확히 못 잡음 — false positive 감수.
   { kind: "delete-no-where", re: /\bdelete\s+from\b(?![\s\S]*\bwhere\b)/i },
-  { kind: "update-no-where", re: /\bupdate\s+\S+\s+set\b(?![\s\S]*\bwhere\b)/i },
+  {
+    kind: "update-no-where",
+    re: /\bupdate\s+\S+\s+set\b(?![\s\S]*\bwhere\b)/i,
+  },
   { kind: "grant-revoke-all", re: /\b(grant|revoke)\s+all\b/i },
 ];
 
@@ -1936,6 +1955,7 @@ git commit -m "feat(week4): classify_destructive_sql command + frontend regex pr
 **Goal:** Modal that takes a list of findings + the SQL preview and yields a boolean (run / cancel). Standard mode: two-button. Strict: typed keyword.
 
 **Files:**
+
 - Create: `src/features/ai/DestructiveModal.tsx`
 - Create: `src/features/ai/DestructiveModal.test.tsx`
 - Modify: `src/lib/confirm.tsx` (add a typed-confirm variant) — or expose a new helper instead.
@@ -2011,9 +2031,7 @@ export function DestructiveModalHost() {
       "VACUUM",
     ];
     return (
-      candidates.find((c) =>
-        req.sql.toUpperCase().includes(c),
-      ) ?? "CONFIRM"
+      candidates.find((c) => req.sql.toUpperCase().includes(c)) ?? "CONFIRM"
     );
   }, [req]);
 
@@ -2087,10 +2105,7 @@ Create `src/features/ai/DestructiveModal.test.tsx`:
 import { afterEach, describe, expect, it } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 
-import {
-  DestructiveModalHost,
-  confirmDestructive,
-} from "./DestructiveModal";
+import { DestructiveModalHost, confirmDestructive } from "./DestructiveModal";
 
 afterEach(cleanup);
 
@@ -2119,7 +2134,12 @@ describe("DestructiveModal", () => {
     render(<DestructiveModalHost />);
     const promise = confirmDestructive({
       findings: [
-        { kind: "truncate", statementIndex: 0, message: "...", affectedObject: "x" },
+        {
+          kind: "truncate",
+          statementIndex: 0,
+          message: "...",
+          affectedObject: "x",
+        },
       ],
       sql: "TRUNCATE x",
       strict: false,
@@ -2133,7 +2153,12 @@ describe("DestructiveModal", () => {
     render(<DestructiveModalHost />);
     const promise = confirmDestructive({
       findings: [
-        { kind: "drop-table", statementIndex: 0, message: "...", affectedObject: "x" },
+        {
+          kind: "drop-table",
+          statementIndex: 0,
+          message: "...",
+          affectedObject: "x",
+        },
       ],
       sql: "DROP TABLE x",
       strict: true,
@@ -2173,6 +2198,7 @@ git commit -m "feat(week4): DestructiveModal (Standard / Strict) + vitest"
 **Goal:** Every Run path (`Cmd+Enter` in editor, palette re-run, future Cmd+K Apply) goes through `classifyDestructive` first; if findings exist, present `confirmDestructive` and short-circuit on cancel. The Rust side does NOT block on destructive in v1 — UX is the gate.
 
 **Files:**
+
 - Modify: `src/features/editor/EditorPane.tsx` (Cmd+Enter `run` callback)
 - Modify: `src/features/history/HistoryPalette.tsx` (palette re-run)
 - Create: `src/lib/ai/runGate.ts` (shared helper)
@@ -2295,6 +2321,7 @@ git commit -m "feat(week4): runGate — every execute path gated by destructive 
 **Goal:** Add SQLite tables for embedding BLOBs and AI metadata. Reuse Week 3's history_entry FK.
 
 **Files:**
+
 - Modify: `src-tauri/src/db/state.rs` (add migration step)
 
 **Steps:**
@@ -2371,6 +2398,7 @@ git commit -m "feat(week4): migration 003_ai — schema_embedding + ai_history"
 **Goal:** Pure-ish builder that synthesizes a `CREATE TABLE` string from PG catalog rows. Stable output (deterministic ordering) for cheap checksumming.
 
 **Files:**
+
 - Create: `src-tauri/src/db/schema_embed.rs`
 - Modify: `src-tauri/src/db/mod.rs`
 
@@ -2597,6 +2625,7 @@ git commit -m "feat(week4): build_table_ddl — synthesize CREATE TABLE DDL from
 **Goal:** Read/write `f32[]` BLOBs in `schema_embedding`, plus an in-memory cosine top-K. No DB connection (rusqlite) inside the cosine — pure compute.
 
 **Files:**
+
 - Create: `src-tauri/src/db/embedding_store.rs`
 - Modify: `src-tauri/src/db/mod.rs`
 
@@ -2869,6 +2898,7 @@ git commit -m "feat(week4): embedding_store — BLOB upsert + cosine top_k"
 **Goal:** A `embed_one(provider, model, base_url?, api_key, text) -> Vec<f32>` Rust function. Used by the schema-sync command (T15) for each table DDL and (later) by `schema_top_k` for the user prompt.
 
 **Files:**
+
 - Create: `src-tauri/src/db/embedding_http.rs`
 - Modify: `src-tauri/src/db/mod.rs`
 
@@ -3106,6 +3136,7 @@ git commit -m "feat(week4): embedding HTTP adapters (OpenAI / Gemini / Ollama) +
 **Goal:** Tauri command that walks all user tables in a connection, embeds each (skipping unchanged), upserts BLOBs, and emits progress events.
 
 **Files:**
+
 - Create: `src-tauri/src/commands/schema_index.rs`
 - Modify: `src-tauri/src/commands/mod.rs`
 - Modify: `src-tauri/src/lib.rs`
@@ -3325,6 +3356,7 @@ git commit -m "feat(week4): sync_schema_index command + progress events"
 **Goal:** Settings → Schema Index tab shows progress for the active connection. Auto-sync fires on `connect()` success when `schemaIndexAutoSync` is true.
 
 **Files:**
+
 - Create: `src/store/schemaIndex.ts`
 - Create: `src/features/settings/SchemaIndexPanel.tsx`
 - Modify: `src/features/settings/SettingsDialog.tsx`
@@ -3406,6 +3438,7 @@ git commit -m "feat(week4): SchemaIndexPanel + auto-sync on connect"
 **Goal:** Two reads used at every Cmd+K invocation: (a) embed user prompt → return top-K relevant tables (with DDL + similarity + forced flag by name match); (b) last 5 successful queries on this connection.
 
 **Files:**
+
 - Modify: `src-tauri/src/commands/schema_index.rs`
 - Modify: `src-tauri/src/commands/history.rs`
 - Modify: `src-tauri/src/db/state.rs`
@@ -3461,6 +3494,7 @@ git commit -m "feat(week4): schema_top_k + list_recent_successful"
 **Goal:** Pure functions — `buildSystemPrompt(args)` synthesizes the system prompt (PG version + extensions + top-K DDL + recent queries + safety rules). `buildTools(deps)` returns the AI SDK tool object.
 
 **Files:**
+
 - Create: `src/lib/ai/types.ts`
 - Create: `src/lib/ai/prompts.ts`
 - Create: `src/lib/ai/prompts.test.ts`
@@ -3494,6 +3528,7 @@ Also export `extractSql(text)` — extracts the first ```sql fenced block, or re
 - [ ] **Step 4: prompts.test.ts**
 
 Vitest cases:
+
 - `buildSystemPrompt` includes pg version, extension names, schema-qualified DDL, recent queries.
 - `buildSystemPrompt` with `selectionContext` includes the selection block.
 - `extractSql` returns content of ```sql fenced block.
@@ -3521,6 +3556,7 @@ git commit -m "feat(week4): system prompt builder + AI SDK tool defs"
 **Goal:** Backend implementations of the tool calls invoked by the LLM via AI SDK. `sample_rows` returns query-result-shaped data and is gated at the frontend (T18 `buildTools` filter).
 
 **Files:**
+
 - Create: `src-tauri/src/commands/ai_tools.rs`
 - Modify: `src-tauri/src/commands/mod.rs`
 - Modify: `src-tauri/src/lib.rs`
@@ -3582,6 +3618,7 @@ git commit -m "feat(week4): ai_tools — get_table_schema / list_indexes / sampl
 **Goal:** Floating modal anchored near the editor cursor. Takes user prompt → assembles system prompt via T18 → calls AI SDK `streamText` → displays SQL as it arrives → emits a final `generated_sql` to the parent. Supports AbortController (esc/re-prompt cancels in-flight stream).
 
 **Files:**
+
 - Create: `src/lib/ai/stream.ts`
 - Create: `src/features/ai/CmdKPalette.tsx`
 
@@ -3811,11 +3848,7 @@ export function CmdKPalette({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-40"
-      onClick={onClose}
-      role="presentation"
-    >
+    <div className="fixed inset-0 z-40" onClick={onClose} role="presentation">
       <div
         className="bg-card fixed top-1/4 left-1/2 z-50 w-[640px] -translate-x-1/2 rounded border p-3 shadow"
         onClick={(e) => e.stopPropagation()}
@@ -3843,7 +3876,11 @@ export function CmdKPalette({
             className="border-input flex-1 rounded border px-2 py-1 text-sm"
             autoFocus
           />
-          <Button size="sm" disabled={busy || prompt.trim().length === 0} onClick={onSubmit}>
+          <Button
+            size="sm"
+            disabled={busy || prompt.trim().length === 0}
+            onClick={onSubmit}
+          >
             {busy ? "Streaming…" : "Generate"}
           </Button>
         </div>
@@ -3907,6 +3944,7 @@ git commit -m "feat(week4): CmdKPalette + streaming generation wrapper"
 **Goal:** When the user has a selection in editor, show side-by-side diff (original / generated). When no selection, just show the generated SQL pretty-printed. CmdKPalette uses this for the preview area.
 
 **Files:**
+
 - Create: `src/features/ai/SqlDiffView.tsx`
 - Modify: `src/features/ai/CmdKPalette.tsx` (replace `<pre>` with diff when selection present)
 
@@ -3951,17 +3989,18 @@ export function SqlDiffView({ original, modified, height = 240 }: Props) {
 In `CmdKPalette.tsx`, replace the `streamed && <pre>...</pre>` block with:
 
 ```tsx
-{streamed && (
-  selection ? (
-    <div className="mt-3">
-      <SqlDiffView original={selection} modified={streamed} />
-    </div>
-  ) : (
-    <pre className="bg-muted mt-3 max-h-64 overflow-auto rounded p-2 text-xs">
-      {streamed}
-    </pre>
-  )
-)}
+{
+  streamed &&
+    (selection ? (
+      <div className="mt-3">
+        <SqlDiffView original={selection} modified={streamed} />
+      </div>
+    ) : (
+      <pre className="bg-muted mt-3 max-h-64 overflow-auto rounded p-2 text-xs">
+        {streamed}
+      </pre>
+    ));
+}
 ```
 
 Add `import { SqlDiffView } from "./SqlDiffView";`.
@@ -3988,6 +4027,7 @@ git commit -m "feat(week4): SqlDiffView (Monaco diff) for selection-mode generat
 **Goal:** Cmd+K shortcut in the editor mounts the palette. Apply replaces the selection (if any) or inserts at cursor; record an `ai_history` row + `history_entry` row.
 
 **Files:**
+
 - Modify: `src/features/editor/EditorPane.tsx`
 - Modify: `src-tauri/src/commands/history.rs` (add `record_ai_generation`)
 - Modify: `src-tauri/src/db/state.rs` (insert into `history_entry` + `ai_history`)
@@ -4082,10 +4122,15 @@ if (e.key.toLowerCase() === "k") {
       const r = ed.getSelection();
       if (m && r) {
         // Replace selection (or insert at cursor when r is empty)
-        ed.executeEdits("cmdk-apply", [{ range: r, text: sql, forceMoveMarkers: true }]);
+        ed.executeEdits("cmdk-apply", [
+          { range: r, text: sql, forceMoveMarkers: true },
+        ]);
       } else {
         // Fallback: append
-        updateSql(activeTab.id, activeTab.sql + (activeTab.sql.endsWith("\n") ? "" : "\n") + sql);
+        updateSql(
+          activeTab.id,
+          activeTab.sql + (activeTab.sql.endsWith("\n") ? "" : "\n") + sql,
+        );
       }
     }
     if (connectionForTab) {
@@ -4205,6 +4250,7 @@ Otherwise skip.
 **Goal:** A reproducible checklist a non-author can run end-to-end.
 
 **Files:**
+
 - Create: `docs/superpowers/plans/manual-verification-week-4.md`
 
 **Steps:**
@@ -4279,4 +4325,3 @@ git commit -m "docs(week4): manual verification checklist"
 - [ ] Final tag/PR opens against `main`.
 
 **Done.**
-

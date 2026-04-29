@@ -92,6 +92,7 @@ LLM 호출 분배는 Week 4 그대로: **generation = 프론트** (Vercel AI SDK
 ### 왜 EXPLAIN 실행을 별도 명령으로 두는가
 
 `execute_query`에 옵션 플래그를 추가하지 않고 별도 `run_explain` 명령으로 분리하는 이유:
+
 - Plan 결과는 `QueryResult`(rows/columns)와 다른 구조 (`Plan` JSON + verified candidates + warnings).
 - BEGIN/ROLLBACK 래핑은 EXPLAIN 전용 정책이라 일반 쿼리 경로를 오염시키지 않음.
 - destructive 가드를 호출 측이 명시적으로 부르게 함 → 코드 흐름이 grep 가능.
@@ -100,14 +101,14 @@ LLM 호출 분배는 Week 4 그대로: **generation = 프론트** (Vercel AI SDK
 
 기본적으로 **신규 의존성 없음**. 모든 기능을 in-house로 구현.
 
-| 영역                  | 라이브러리                  | 사유                                                                                          |
-| --------------------- | --------------------------- | --------------------------------------------------------------------------------------------- |
-| Plan tree 렌더링      | (없음)                      | 들여쓰기 텍스트 + div width%로 self-time bar. 외부 graph 라이브러리 의도적으로 회피.          |
-| Plan SHA              | Web Crypto `subtle.digest`  | 브라우저 표준. 별도 crate 불필요.                                                             |
-| Postgres EXPLAIN 실행 | 기존 `sqlx`                 | `EXPLAIN (...) FORMAT JSON`은 단일 row TEXT/JSON 컬럼으로 반환됨. 일반 `query` 경로 그대로.   |
-| pg_stats 조회         | 기존 `sqlx`                 | 추가 의존성 없음. `pg_meta.rs`의 패턴을 따름.                                                  |
-| AI streamText         | 기존 Vercel AI SDK          | Cmd+K 패턴 그대로. tool calling은 Week 5에서 사용 안 함 (plan + 컨텍스트가 정해져 있음).       |
-| Plan JSON 파싱        | `serde_json`                | 이미 Cargo에 있음.                                                                            |
+| 영역                  | 라이브러리                 | 사유                                                                                        |
+| --------------------- | -------------------------- | ------------------------------------------------------------------------------------------- |
+| Plan tree 렌더링      | (없음)                     | 들여쓰기 텍스트 + div width%로 self-time bar. 외부 graph 라이브러리 의도적으로 회피.        |
+| Plan SHA              | Web Crypto `subtle.digest` | 브라우저 표준. 별도 crate 불필요.                                                           |
+| Postgres EXPLAIN 실행 | 기존 `sqlx`                | `EXPLAIN (...) FORMAT JSON`은 단일 row TEXT/JSON 컬럼으로 반환됨. 일반 `query` 경로 그대로. |
+| pg_stats 조회         | 기존 `sqlx`                | 추가 의존성 없음. `pg_meta.rs`의 패턴을 따름.                                               |
+| AI streamText         | 기존 Vercel AI SDK         | Cmd+K 패턴 그대로. tool calling은 Week 5에서 사용 안 함 (plan + 컨텍스트가 정해져 있음).    |
+| Plan JSON 파싱        | `serde_json`               | 이미 Cargo에 있음.                                                                          |
 
 ## 5. Data flow
 
@@ -238,7 +239,7 @@ export type ExplainMode =
   | "passthrough";
 
 export interface PlanNode {
-  nodeType: string;           // "Seq Scan", "Hash Join", …
+  nodeType: string; // "Seq Scan", "Hash Join", …
   relationName?: string;
   schema?: string;
   alias?: string;
@@ -281,8 +282,8 @@ export interface ExplainResult {
   plan: PlanNode;
   warnings: string[];
   verifiedCandidates: IndexCandidate[];
-  rawJson: string;          // for SHA + AI context
-  executedAt: number;       // ms
+  rawJson: string; // for SHA + AI context
+  executedAt: number; // ms
   totalMs: number | null;
 }
 ```
@@ -302,7 +303,7 @@ export async function runExplainGate(args: {
 #### `features/explain/PlanTree.tsx`
 
 - 들여쓰기 텍스트 트리, 각 행:
-  - 좌측 self-time bar: `<div style={{ width: `${ratio * 100}%` }} className="bg-amber-500/30" />` 행 배경 absolute layer.
+  - 좌측 self-time bar: `<div style={{ width: `${ratio \* 100}%` }} className="bg-amber-500/30" />` 행 배경 absolute layer.
   - 텍스트: `{indent}{nodeType} ({selfMs.toFixed(1)} ms · {actualRows ?? planRows} rows)`.
   - `selfTimeRatio ≥ 0.3` 이면 좌측 빨간 보더 + ⚠.
 - 키보드 ↑↓ 탐색, Enter/Space로 선택 토글 (선택은 우측 PlanNodeDetail에 반영).
@@ -382,6 +383,7 @@ pub async fn run_explain(...) -> TuskResult<ExplainResult> { … }
 ```
 
 판별 로직(`sqlast::classify_for_explain`):
+
 - 다중 statement → 첫 statement만 분석 + warning.
 - 첫 statement가 `EXPLAIN`으로 시작 (대소문자 무관 + 옵션 형식 허용) → `passthrough`.
 - 첫 statement가 `SELECT`/`WITH ... SELECT`/`VALUES`/`TABLE ...` → `select-analyze`.
@@ -390,16 +392,19 @@ pub async fn run_explain(...) -> TuskResult<ExplainResult> { … }
 - 그 외(예: `BEGIN`, `SET`) → `TuskError::Explain("not explainable")`.
 
 `allow_analyze_anyway` true이고 mode가 plan-only이면 wrapped SQL을 ANALYZE 형태로 다시 만든다. 이때:
+
 - `tx_slot` 활성이면 그 connection으로 그대로 실행 (warn: "Executed inside active transaction — caller responsibility for rollback").
 - `tx_slot` 비활성이면 pool에서 single connection 잡고 `BEGIN; <wrapped>; ROLLBACK;` 순차 실행. 중간 에러 시 ROLLBACK 보장 (`Drop` 가드가 아니라 명시적 statement).
 
 #### `db/explain_runner.rs`
 
 `EXPLAIN (... FORMAT JSON)` 결과는 1 row 1 column TEXT 또는 JSON. sqlx로:
+
 ```rust
 let row: (serde_json::Value,) = sqlx::query_as("EXPLAIN (FORMAT JSON, ...) ...")
     .fetch_one(...).await?;
 ```
+
 top-level은 `[ { "Plan": {...}, "Planning Time": ..., "Execution Time": ... } ]`. `[0]`만 사용.
 
 #### `db/pg_stats.rs`
@@ -429,6 +434,7 @@ plan JSON을 재귀 traverse하며 §5.3 규칙 적용. 각 후보에 대해 `pg
 #### `commands/history.rs` 확장
 
 새 명령 `record_ai_explain`:
+
 ```rust
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -448,6 +454,7 @@ pub struct RecordAiExplainPayload {
 ```
 
 Week 4 `record_ai_generation`과 같은 트랜잭션 패턴:
+
 1. `history_entry`에 source=`ai_explain`, sql_full = `-- EXPLAIN interpretation\n-- planSha=…`, statement_count=0.
 2. `ai_explain` 신규 테이블에 full payload.
 
@@ -531,23 +538,23 @@ Original SQL:
 
 ## 8. Error handling & edge cases
 
-| 상황                                              | 동작                                                                                       |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| 사용자가 SQL 비워둠                               | toast "SQL is empty"                                                                       |
-| 파서 실패                                         | toast "Cannot classify SQL for EXPLAIN" + 트리 영역에 raw 에러 메시지                       |
-| Multi-statement (semicolon)                       | 첫 statement만 EXPLAIN, warning에 "additional statements ignored"                           |
-| 사용자 SQL이 이미 `EXPLAIN`                        | mode=`passthrough`, ANALYZE-anyway 비활성, 결과 그대로 plan tree 렌더                       |
-| DML/DDL 자동 fallback                              | mode=`dml-plan-only`/`ddl-plan-only`, 노란 배지, "ANALYZE anyway" 버튼 노출                  |
-| ANALYZE-anyway 클릭 + destructive cancel          | 아무 일 없음 (toast "Cancelled" 정도)                                                       |
-| ANALYZE-anyway 중 ROLLBACK 도중 에러              | toast(error) + plan 결과는 폐기. tx_slot 활성 중에는 자동 래핑 안 함이라 이 케이스 없음.    |
-| `pg_stats` 결과 비어 있음 (ANALYZE 안 돌린 테이블) | 후보의 verdict는 `maybe`, n_distinct/null_frac null. UI에서 "stats unavailable" hint.       |
-| 네트워크 LLM 실패                                  | streamGeneration이 throw → toast. AI strip은 "Failed — retry"로 복구. 캐시에 저장 안 함.    |
-| LLM JSON 파싱 실패                                 | summary는 그대로 표시, recommendations는 `[]`로 처리 + warning toast.                       |
-| 같은 plan 재실행                                   | plan SHA 동일 → AI 캐시 hit 재사용 (재호출 없음)                                            |
-| `pg_stats` 권한 없음                               | catch + verdict `maybe` + warnings에 "pg_stats inaccessible (insufficient privileges)" 추가 |
-| Tab 전환                                           | resultMode 보존. 다른 탭으로 갔다 와도 lastPlan 유지.                                        |
-| Tab close                                          | lastPlan/캐시 휘발 (의도)                                                                    |
-| 탭 sql이 plan 실행 후 변경됨                       | `[Rows | Plan]` 토글은 그대로 (이전 plan은 stale일 수 있음 → 헤더에 "stale" 배지 노출)      |
+| 상황                                               | 동작                                                                                                                                     |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| 사용자가 SQL 비워둠                                | toast "SQL is empty"                                                                                                                     |
+| 파서 실패                                          | toast "Cannot classify SQL for EXPLAIN" + 트리 영역에 raw 에러 메시지                                                                    |
+| Multi-statement (semicolon)                        | 첫 statement만 EXPLAIN, warning에 "additional statements ignored"                                                                        |
+| 사용자 SQL이 이미 `EXPLAIN`                        | mode=`passthrough`, ANALYZE-anyway 비활성, 결과 그대로 plan tree 렌더                                                                    |
+| DML/DDL 자동 fallback                              | mode=`dml-plan-only`/`ddl-plan-only`, 노란 배지, "ANALYZE anyway" 버튼 노출                                                              |
+| ANALYZE-anyway 클릭 + destructive cancel           | 아무 일 없음 (toast "Cancelled" 정도)                                                                                                    |
+| ANALYZE-anyway 중 ROLLBACK 도중 에러               | toast(error) + plan 결과는 폐기. tx_slot 활성 중에는 자동 래핑 안 함이라 이 케이스 없음.                                                 |
+| `pg_stats` 결과 비어 있음 (ANALYZE 안 돌린 테이블) | 후보의 verdict는 `maybe`, n_distinct/null_frac null. UI에서 "stats unavailable" hint.                                                    |
+| 네트워크 LLM 실패                                  | streamGeneration이 throw → toast. AI strip은 "Failed — retry"로 복구. 캐시에 저장 안 함.                                                 |
+| LLM JSON 파싱 실패                                 | summary는 그대로 표시, recommendations는 `[]`로 처리 + warning toast.                                                                    |
+| 같은 plan 재실행                                   | plan SHA 동일 → AI 캐시 hit 재사용 (재호출 없음)                                                                                         |
+| `pg_stats` 권한 없음                               | catch + verdict `maybe` + warnings에 "pg_stats inaccessible (insufficient privileges)" 추가                                              |
+| Tab 전환                                           | resultMode 보존. 다른 탭으로 갔다 와도 lastPlan 유지.                                                                                    |
+| Tab close                                          | lastPlan/캐시 휘발 (의도)                                                                                                                |
+| 탭 sql이 plan 실행 후 변경됨                       | `[Rows                                                                                                                                   | Plan]` 토글은 그대로 (이전 plan은 stale일 수 있음 → 헤더에 "stale" 배지 노출) |
 | Plan JSON이 매우 큼 (수백 노드)                    | 트리는 virtualized — 200 노드 미만이면 그대로 렌더, 이상이면 lazy expand 권장 (v1엔 단순 렌더 + 깊이 제한 100, 초과 시 자르기 + warning) |
 
 ## 9. Testing strategy
@@ -602,16 +609,16 @@ Original SQL:
 
 ## 11. Risks & mitigations
 
-| 위험                                                      | 완화                                                                                                  |
-| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| ANALYZE가 실제 데이터를 변경                              | 자동 fallback + 명시적 ANALYZE-anyway에만 destructive 가드 + BEGIN/ROLLBACK 래핑                       |
-| LLM이 hallucinated 인덱스 추천                            | Rust verified candidates와 머지 시 LLM 추천 중 후보에 없는 컬럼은 시각적으로 "AI suggestion only" 표시 |
-| 큰 plan JSON으로 토큰 폭발                                 | 토큰 budget + DDL truncation + 등장 relation만 첨부                                                    |
-| `pg_stats` 권한 부족 환경                                 | verdict `maybe`로 graceful, 사용자에게 명시적 warning                                                  |
-| Plan 재현성(같은 SQL 다른 시점) 비교 욕구                  | v1.5로 미룸 — `ai_explain` 테이블에 raw_plan_json은 이미 저장되니 후속 기능에 데이터 자산은 남음        |
-| 무한 재귀/순환 plan (불가능하지만 방어)                    | parse 시 깊이 100 초과 시 cut + warning                                                                |
-| Multi-statement EXPLAIN 시도                              | 첫 statement만 + warning. v1.5에서 제대로.                                                            |
-| destructive 가드 + transactioning 상호작용 (Week 3/4와)    | 기존 `runGate`/`tx_slot` API를 그대로 사용. 신규 가드 만들지 않음.                                     |
+| 위험                                                    | 완화                                                                                                   |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| ANALYZE가 실제 데이터를 변경                            | 자동 fallback + 명시적 ANALYZE-anyway에만 destructive 가드 + BEGIN/ROLLBACK 래핑                       |
+| LLM이 hallucinated 인덱스 추천                          | Rust verified candidates와 머지 시 LLM 추천 중 후보에 없는 컬럼은 시각적으로 "AI suggestion only" 표시 |
+| 큰 plan JSON으로 토큰 폭발                              | 토큰 budget + DDL truncation + 등장 relation만 첨부                                                    |
+| `pg_stats` 권한 부족 환경                               | verdict `maybe`로 graceful, 사용자에게 명시적 warning                                                  |
+| Plan 재현성(같은 SQL 다른 시점) 비교 욕구               | v1.5로 미룸 — `ai_explain` 테이블에 raw_plan_json은 이미 저장되니 후속 기능에 데이터 자산은 남음       |
+| 무한 재귀/순환 plan (불가능하지만 방어)                 | parse 시 깊이 100 초과 시 cut + warning                                                                |
+| Multi-statement EXPLAIN 시도                            | 첫 statement만 + warning. v1.5에서 제대로.                                                             |
+| destructive 가드 + transactioning 상호작용 (Week 3/4와) | 기존 `runGate`/`tx_slot` API를 그대로 사용. 신규 가드 만들지 않음.                                     |
 
 ## 12. Acceptance gate (Week 5 done = 모두 true)
 

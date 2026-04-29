@@ -15,7 +15,10 @@ const FAST_PATTERNS: { kind: DestructiveFinding["kind"]; re: RegExp }[] = [
   { kind: "drop-column", re: /\bdrop\s+column\b/i },
   // DELETE / UPDATE without WHERE는 정규식만으로 정확히 못 잡음 — false positive 감수.
   { kind: "delete-no-where", re: /\bdelete\s+from\b(?![\s\S]*\bwhere\b)/i },
-  { kind: "update-no-where", re: /\bupdate\s+\S+\s+set\b(?![\s\S]*\bwhere\b)/i },
+  {
+    kind: "update-no-where",
+    re: /\bupdate\s+\S+\s+set\b(?![\s\S]*\bwhere\b)/i,
+  },
   { kind: "grant-revoke-all", re: /\b(grant|revoke)\s+all\b/i },
 ];
 
