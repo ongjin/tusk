@@ -20,6 +20,7 @@ export function ExplainView({ tabId, connId, sql, result }: Props) {
   const setSelectedNodePath = useTabs((s) => s.setSelectedNodePath);
   const planOnly =
     result.mode === "dml-plan-only" || result.mode === "ddl-plan-only";
+  const stale = tab?.sql !== tab?.lastPlan?.sqlAtRun;
 
   return (
     <div className="flex h-full flex-col">
@@ -35,6 +36,11 @@ export function ExplainView({ tabId, connId, sql, result }: Props) {
         {result.warnings.length > 0 && (
           <span className="text-amber-600" title={result.warnings.join("\n")}>
             ⚠ {result.warnings.length} warning(s)
+          </span>
+        )}
+        {stale && (
+          <span className="rounded bg-orange-500/20 px-2 py-0.5">
+            stale (sql edited)
           </span>
         )}
         {(result.mode === "dml-plan-only" ||
@@ -80,10 +86,7 @@ export function ExplainView({ tabId, connId, sql, result }: Props) {
           const found = t.tabs.find((x) => x.id === tabId);
           if (!found) return;
           const next =
-            found.sql +
-            (found.sql.endsWith("\n") ? "" : "\n") +
-            sqlText +
-            "\n";
+            found.sql + (found.sql.endsWith("\n") ? "" : "\n") + sqlText + "\n";
           t.updateSql(tabId, next);
         }}
       />

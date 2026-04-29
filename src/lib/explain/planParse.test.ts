@@ -90,4 +90,31 @@ describe("parsePlan — plan-only", () => {
     expect(root.selfTimeRatio).toBeNull();
     expect(root.selfCostRatio).toBeCloseTo(1, 5);
   });
+
+  it("cuts off at MAX_DEPTH", () => {
+    interface RawNode {
+      "Node Type": string;
+      "Startup Cost": number;
+      "Total Cost": number;
+      "Plan Rows": number;
+      "Plan Width": number;
+      Plans?: RawNode[];
+    }
+    let cur: RawNode = {
+      "Node Type": "X",
+      "Startup Cost": 0,
+      "Total Cost": 1,
+      "Plan Rows": 1,
+      "Plan Width": 1,
+    };
+    for (let i = 0; i < 110; i++) cur = { ...cur, Plans: [cur] };
+    const root = parsePlan({ Plan: cur } as unknown as RawExplainPlan);
+    let depth = 0;
+    let node = root;
+    while (node.children.length) {
+      node = node.children[0];
+      depth++;
+    }
+    expect(depth).toBeLessThanOrEqual(100);
+  });
 });

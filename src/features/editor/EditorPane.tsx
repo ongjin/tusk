@@ -131,14 +131,7 @@ export function EditorPane() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [
-    activeTab.id,
-    closeTab,
-    connectionForTab,
-    newTab,
-    run,
-    runExplainAction,
-  ]);
+  }, [activeTab.id, closeTab, connectionForTab, newTab, run, runExplainAction]);
 
   const handleCmdKApply = useCallback(
     async (sql: string, meta: ApplyMeta) => {
