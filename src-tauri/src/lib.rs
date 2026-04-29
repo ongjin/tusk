@@ -64,6 +64,7 @@ pub fn run() {
             commands::ai_tools::list_indexes,
             commands::ai_tools::sample_rows,
             commands::explain::run_explain,
+            commands::vector::list_vector_columns,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
