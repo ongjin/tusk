@@ -1,6 +1,7 @@
-import type { ExplainResult } from "@/lib/explain/planTypes";
+import type { ExplainResult, PlanNode } from "@/lib/explain/planTypes";
 import { useTabs } from "@/store/tabs";
 
+import { PlanNodeDetail } from "./PlanNodeDetail";
 import { PlanTree } from "./PlanTree";
 
 interface Props {
@@ -41,10 +42,22 @@ export function ExplainView({ tabId, result }: Props) {
             planOnly={planOnly}
           />
         </div>
-        <div className="text-muted-foreground overflow-auto p-3 text-xs">
-          Node detail — coming up in Task 14.
+        <div className="overflow-auto">
+          <PlanNodeDetail
+            node={selectedNode(result.plan, selectedPath)}
+            planOnly={planOnly}
+          />
         </div>
       </div>
     </div>
   );
+}
+
+function selectedNode(root: PlanNode, path: number[]): PlanNode | null {
+  let cur: PlanNode | undefined = root;
+  for (const idx of path) {
+    cur = cur?.children[idx];
+    if (!cur) return null;
+  }
+  return cur ?? null;
 }
