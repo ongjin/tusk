@@ -1,4 +1,5 @@
 //! `parse_select_target` classifies a SQL string for editability.
+//! Also exports `classify_for_explain` for EXPLAIN mode routing.
 //!
 //! Returns `ParsedSelect::SingleTable { schema, table }` ONLY when the result
 //! is round-trippable to a single base relation:
@@ -260,9 +261,11 @@ pub fn classify_for_explain(sql: &str) -> ExplainCategory {
         | S::Drop { .. }
         | S::AlterTable { .. }
         | S::AlterIndex { .. }
+        | S::AlterView { .. }
         | S::Truncate { .. }
         | S::Grant { .. }
         | S::Revoke { .. } => ExplainCategory::DdlPlanOnly,
+        S::Explain { .. } => ExplainCategory::Passthrough,
         _ => ExplainCategory::NotExplainable,
     }
 }
@@ -287,8 +290,9 @@ mod explain_classifier_tests {
             ExplainCategory::SelectAnalyze
         );
         assert_eq!(cls("VALUES (1),(2)"), ExplainCategory::SelectAnalyze);
-        // Note: `TABLE users` shorthand is not supported by sqlparser 0.52 PostgreSQL dialect.
-        // It would parse as SelectAnalyze in newer versions.
+        // `TABLE users` shorthand fails to parse in sqlparser 0.52 (PostgreSQL
+        // dialect), returning Unparseable. When bumping sqlparser, add:
+        //   assert_eq!(cls("TABLE users"), ExplainCategory::SelectAnalyze);
     }
 
     #[test]
@@ -326,6 +330,8 @@ mod explain_classifier_tests {
             ExplainCategory::Passthrough
         );
         assert_eq!(cls("  explain   select 1"), ExplainCategory::Passthrough);
+        assert_eq!(cls("EXPLAIN\nSELECT 1"), ExplainCategory::Passthrough);
+        assert_eq!(cls("EXPLAIN\tSELECT 1"), ExplainCategory::Passthrough);
     }
 
     #[test]
