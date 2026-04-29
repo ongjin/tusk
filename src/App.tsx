@@ -6,6 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { toast } from "sonner";
 
 import { FindSimilarModal, type FindSimilarOpen } from "@/features/vector/FindSimilarModal";
+import { VectorIndexPanel, type VectorIndexPanelOpen } from "@/features/vector/VectorIndexPanel";
 import { useVectorActions } from "@/store/useVectorActions";
 import { ConnectionForm } from "@/features/connections/ConnectionForm";
 import { ConnectionList } from "@/features/connections/ConnectionList";
@@ -57,6 +58,12 @@ function App() {
     set((args) => useTabs.getState().newUmapTab(args));
     return () => set(null);
   }, []);
+  const [indexPanel, setIndexPanel] = useState<VectorIndexPanelOpen | null>(null);
+  const setOpenIndexPanel = useVectorActions((s) => s.setOpenIndexPanel);
+  useEffect(() => {
+    setOpenIndexPanel((args) => setIndexPanel(args));
+    return () => setOpenIndexPanel(null);
+  }, [setOpenIndexPanel]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
@@ -251,6 +258,7 @@ function App() {
         open={findSimilar}
         onClose={() => setFindSimilar(null)}
       />
+      <VectorIndexPanel open={indexPanel} onClose={() => setIndexPanel(null)} />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       {showPalette && (
         <HistoryPalette
