@@ -202,6 +202,162 @@ pub fn parse_select_target(sql: &str) -> ParsedSelect {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ExplainCategory {
+    /// SELECT/CTE/VALUES — wrap with EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON).
+    SelectAnalyze,
+    /// DML (INSERT/UPDATE/DELETE/MERGE) — wrap with EXPLAIN (FORMAT JSON) only.
+    DmlPlanOnly,
+    /// DDL (CREATE/DROP/ALTER/TRUNCATE/GRANT/REVOKE) — wrap with EXPLAIN (FORMAT JSON) only.
+    DdlPlanOnly,
+    /// User already wrote `EXPLAIN ...` — execute as-is.
+    Passthrough,
+    /// SQL that the parser could not understand at all.
+    Unparseable,
+    /// Parsed fine, but Postgres won't accept this in EXPLAIN
+    /// (e.g., BEGIN, COMMIT, SET, SHOW).
+    NotExplainable,
+}
+
+/// Classify a SQL string for the EXPLAIN runner. Examines only the first
+/// statement; multi-statement input is allowed but only the first decides
+/// the category. Callers that wrap the SQL must wrap *only* the first
+/// statement and surface a warning for any trailing statements.
+pub fn classify_for_explain(sql: &str) -> ExplainCategory {
+    use sqlparser::ast::Statement as S;
+
+    let trimmed = sql.trim();
+    if trimmed.is_empty() {
+        return ExplainCategory::Unparseable;
+    }
+
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.starts_with("explain ") || lower.starts_with("explain(") {
+        return ExplainCategory::Passthrough;
+    }
+
+    let stmts = match Parser::parse_sql(&PostgreSqlDialect {}, trimmed) {
+        Ok(s) => s,
+        Err(_) => return ExplainCategory::Unparseable,
+    };
+    let first = match stmts.into_iter().next() {
+        Some(s) => s,
+        None => return ExplainCategory::Unparseable,
+    };
+
+    match first {
+        S::Query(_) => ExplainCategory::SelectAnalyze,
+        S::Insert { .. } | S::Update { .. } | S::Delete { .. } | S::Merge { .. } => {
+            ExplainCategory::DmlPlanOnly
+        }
+        S::CreateTable { .. }
+        | S::CreateIndex { .. }
+        | S::CreateView { .. }
+        | S::CreateSchema { .. }
+        | S::CreateExtension { .. }
+        | S::CreateFunction { .. }
+        | S::Drop { .. }
+        | S::AlterTable { .. }
+        | S::AlterIndex { .. }
+        | S::Truncate { .. }
+        | S::Grant { .. }
+        | S::Revoke { .. } => ExplainCategory::DdlPlanOnly,
+        _ => ExplainCategory::NotExplainable,
+    }
+}
+
+#[cfg(test)]
+mod explain_classifier_tests {
+    use super::*;
+
+    fn cls(s: &str) -> ExplainCategory {
+        classify_for_explain(s)
+    }
+
+    #[test]
+    fn select_is_analyze() {
+        assert_eq!(cls("SELECT 1"), ExplainCategory::SelectAnalyze);
+        assert_eq!(
+            cls("  select * from users  "),
+            ExplainCategory::SelectAnalyze
+        );
+        assert_eq!(
+            cls("WITH x AS (SELECT 1) SELECT * FROM x"),
+            ExplainCategory::SelectAnalyze
+        );
+        assert_eq!(cls("VALUES (1),(2)"), ExplainCategory::SelectAnalyze);
+        // Note: `TABLE users` shorthand is not supported by sqlparser 0.52 PostgreSQL dialect.
+        // It would parse as SelectAnalyze in newer versions.
+    }
+
+    #[test]
+    fn dml_is_plan_only() {
+        assert_eq!(
+            cls("INSERT INTO t VALUES (1)"),
+            ExplainCategory::DmlPlanOnly
+        );
+        assert_eq!(cls("UPDATE t SET a=1"), ExplainCategory::DmlPlanOnly);
+        assert_eq!(cls("DELETE FROM t"), ExplainCategory::DmlPlanOnly);
+        // Note: `MERGE ... DO NOTHING` is not supported by sqlparser 0.52 PostgreSQL dialect.
+        // Use UPDATE action variant instead to verify MERGE parses as DmlPlanOnly.
+        assert_eq!(
+            cls("MERGE INTO t USING s ON t.id=s.id WHEN MATCHED THEN UPDATE SET t.a=s.a"),
+            ExplainCategory::DmlPlanOnly
+        );
+    }
+
+    #[test]
+    fn ddl_is_plan_only() {
+        assert_eq!(cls("CREATE TABLE x (id int)"), ExplainCategory::DdlPlanOnly);
+        assert_eq!(cls("DROP TABLE x"), ExplainCategory::DdlPlanOnly);
+        assert_eq!(
+            cls("ALTER TABLE x ADD COLUMN y int"),
+            ExplainCategory::DdlPlanOnly
+        );
+        assert_eq!(cls("TRUNCATE x"), ExplainCategory::DdlPlanOnly);
+    }
+
+    #[test]
+    fn already_explain_passthrough() {
+        assert_eq!(cls("EXPLAIN SELECT 1"), ExplainCategory::Passthrough);
+        assert_eq!(
+            cls("EXPLAIN (ANALYZE, BUFFERS) SELECT 1"),
+            ExplainCategory::Passthrough
+        );
+        assert_eq!(cls("  explain   select 1"), ExplainCategory::Passthrough);
+    }
+
+    #[test]
+    fn unparseable_returns_error() {
+        assert_eq!(cls(""), ExplainCategory::Unparseable);
+        assert_eq!(cls("    "), ExplainCategory::Unparseable);
+        assert_eq!(cls("not even sql !!"), ExplainCategory::Unparseable);
+    }
+
+    #[test]
+    fn non_explainable_returns_error() {
+        assert_eq!(cls("BEGIN"), ExplainCategory::NotExplainable);
+        assert_eq!(cls("COMMIT"), ExplainCategory::NotExplainable);
+        assert_eq!(
+            cls("SET search_path = public"),
+            ExplainCategory::NotExplainable
+        );
+    }
+
+    #[test]
+    fn multi_statement_uses_first() {
+        assert_eq!(
+            cls("SELECT 1; UPDATE t SET a=1"),
+            ExplainCategory::SelectAnalyze
+        );
+        assert_eq!(
+            cls("UPDATE t SET a=1; SELECT 1"),
+            ExplainCategory::DmlPlanOnly
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
